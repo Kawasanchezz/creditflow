@@ -9,10 +9,15 @@ import com.creditflow.proposal.ProposalHistory;
 import com.creditflow.proposal.ProposalStatus;
 import com.creditflow.policy.Outcome;
 import com.creditflow.simulation.AmortizationSystem;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,22 +28,22 @@ public final class ApiDtos {
     }
 
     public record SimulationRequest(@NotNull AmortizationSystem system,
-                                    @NotNull @DecimalMin("0.01") BigDecimal amount,
-                                    @NotNull @DecimalMin("0.0") BigDecimal monthlyRate,
-                                    @Min(1) int term) {
+                                    @NotNull @DecimalMin("0.01") @DecimalMax("1000000000") @Digits(integer = 10, fraction = 2) BigDecimal amount,
+                                    @NotNull @DecimalMin("0.0") @DecimalMax("1") @Digits(integer = 1, fraction = 8) BigDecimal monthlyRate,
+                                    @Min(1) @Max(480) int term) {
     }
 
-    public record ProposalRequest(@NotNull Long customerId,
+    public record ProposalRequest(@NotNull @Positive Long customerId,
                                   @NotNull AmortizationSystem system,
-                                  @NotNull @DecimalMin("0.01") BigDecimal amount,
-                                  @NotNull @DecimalMin("0.0") BigDecimal monthlyRate,
-                                  @Min(1) int term,
-                                  @NotNull @DecimalMin("0.0") BigDecimal monthlyIncome,
-                                  @NotNull @DecimalMin("0.0") BigDecimal existingCommitments,
-                                  @Min(0) int relationshipMonths) {
+                                  @NotNull @DecimalMin("0.01") @DecimalMax("1000000000") @Digits(integer = 10, fraction = 2) BigDecimal amount,
+                                  @NotNull @DecimalMin("0.0") @DecimalMax("1") @Digits(integer = 1, fraction = 8) BigDecimal monthlyRate,
+                                  @Min(1) @Max(480) int term,
+                                  @NotNull @DecimalMin("0.0") @DecimalMax("1000000000") @Digits(integer = 10, fraction = 2) BigDecimal monthlyIncome,
+                                  @NotNull @DecimalMin("0.0") @DecimalMax("1000000000") @Digits(integer = 10, fraction = 2) BigDecimal existingCommitments,
+                                  @Min(0) @Max(1200) int relationshipMonths) {
     }
 
-    public record ManualDecisionRequest(boolean approved, @NotBlank String reason) {
+    public record ManualDecisionRequest(boolean approved, @NotBlank @Size(max = 400) String reason) {
     }
 
     public record ProposalResponse(Long id, Long customerId, BigDecimal amount, int term, BigDecimal monthlyRate,

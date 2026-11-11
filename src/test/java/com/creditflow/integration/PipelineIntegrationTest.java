@@ -4,6 +4,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -167,5 +168,39 @@ class PipelineIntegrationTest {
         mvc.perform(get("/api/proposals/999999")).andExpect(status().isNotFound());
         mvc.perform(post("/api/proposals/999999/contract").header("Idempotency-Key", "x"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void oversizedAndMalformedInputIsRejectedWithoutLeakingInternals() throws Exception {
+        String hugeTerm = "{\"system\":\"PRICE\",\"amount\":1000,\"monthlyRate\":0.01,\"term\":100000}";
+        String body = mvc.perform(post("/api/simulations").contentType(MediaType.APPLICATION_JSON).content(hugeTerm))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+        assertThat(body).contains("term").doesNotContain("com.creditflow").doesNotContain("public ");
+        mvc.perform(post("/api/simulations").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"system\":\"PRICE\",\"amount\":99999999999999,\"monthlyRate\":0.01,\"term\":12}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/simulations").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"system\":\"PRICE\",\"amount\":1000,\"monthlyRate\":5,\"term\":12}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void idempotencyKeyLengthIsValidated() throws Exception {
+        score.stubFor(WireMock.get(urlPathMatching("/score/.*")).willReturn(okJson("{\"score\":780}")));
+        long id = createProposal(20, "8000", 24);
+        submit(id);
+        mvc.perform(post("/api/proposals/" + id + "/contract").header("Idempotency-Key", "k".repeat(101)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/proposals/" + id + "/contract").header("Idempotency-Key", " "))
+                .andExpect(status().isBadRequest());
+        assertThat(contracts.findByProposalId(id)).isEmpty();
+    }
+
+    @Test
+    void responsesCarryDefensiveHeaders() throws Exception {
+        mvc.perform(get("/api/proposals/999999"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Cache-Control", "no-store"));
     }
 }

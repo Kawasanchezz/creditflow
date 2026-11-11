@@ -37,7 +37,7 @@ class AmortizationTest {
 
     @Test
     void priceKnownTotals() {
-        // 1000 a 2% em 3x: PMT = 346.75 ; juros: 20.00 / 13.65 / 6.93 ; ultima parcela absorve o residuo
+        // 1000 a 2% em 3x: PMT = 346.75; 2a parcela tem juros de 13.465 -> 13.46 (HALF_EVEN); a ultima absorve o residuo
         List<InstallmentLine> l = price.schedule(bd("1000"), bd("0.02"), 3);
         assertThat(l.get(0).interest()).isEqualByComparingTo("20.00");
         assertThat(l.get(0).principal()).isEqualByComparingTo("326.75");
@@ -59,7 +59,6 @@ class AmortizationTest {
         assertThat(lines.get(n - 1).payment()).isEqualByComparingTo(last);
         BigDecimal interest = lines.stream().map(InstallmentLine::interest).reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(interest).isEqualByComparingTo(totalInterest);
-        // parcelas decrescentes
         for (int k = 1; k < n; k++) {
             assertThat(lines.get(k).payment()).isLessThan(lines.get(k - 1).payment());
         }
@@ -105,6 +104,7 @@ class AmortizationTest {
         assertThatThrownBy(() -> sac.schedule(bd("0.05"), bd("0.01"), 6)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> price.schedule(bd("0"), bd("0.01"), 12)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> price.schedule(bd("100"), bd("-0.01"), 12)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> sac.schedule(bd("100000"), bd("0.01"), 481)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> sac.schedule(bd("100"), bd("0.01"), 0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> sac.schedule(null, bd("0.01"), 1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> sac.schedule(bd("100"), null, 1)).isInstanceOf(IllegalArgumentException.class);

@@ -6,6 +6,9 @@ import java.util.List;
 /** Estrategia de amortizacao (Strategy pattern): Price e SAC. */
 public interface AmortizationStrategy {
 
+    /** Limite de prazo (40 anos): impede que um unico pedido consuma CPU/memoria sem controle. */
+    int MAX_TERM = 480;
+
     AmortizationSystem system();
 
     /**
@@ -24,6 +27,9 @@ public interface AmortizationStrategy {
         }
         if (term <= 0) {
             throw new IllegalArgumentException("term must be positive");
+        }
+        if (term > MAX_TERM) {
+            throw new IllegalArgumentException("term must be at most " + MAX_TERM);
         }
         if (principal.compareTo(BigDecimal.valueOf(term, 2)) < 0) {
             throw new IllegalArgumentException("amount too small: at least 0.01 per installment");

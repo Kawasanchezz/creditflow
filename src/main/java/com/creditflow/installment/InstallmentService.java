@@ -7,6 +7,7 @@ import com.creditflow.contract.ContractRepository;
 import com.creditflow.proposal.ProposalRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class InstallmentService {
             throw new BusinessRuleException("Parcela ja quitada");
         }
         BigDecimal rate = proposals.findById(contract.getProposalId()).orElseThrow().getRate();
-        long daysEarly = ChronoUnit.DAYS.between(LocalDate.now(), inst.getDueDate());
+        long daysEarly = ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), inst.getDueDate());
         inst.markPrepaid(PrepaymentCalculator.payoffAmount(inst.getAmount(), inst.getPrincipal(), rate, daysEarly));
         return inst;
     }

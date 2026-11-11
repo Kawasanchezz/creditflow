@@ -26,6 +26,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class ContractService {
+    private static final int MAX_KEY_LENGTH = 100;
+
     private final ContractRepository contracts;
     private final InstallmentRepository installments;
     private final ProposalService proposalService;
@@ -42,6 +44,9 @@ public class ContractService {
     }
 
     public ContractResult contract(Long proposalId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > MAX_KEY_LENGTH) {
+            throw new IllegalArgumentException("Idempotency-Key deve ter de 1 a " + MAX_KEY_LENGTH + " caracteres");
+        }
         Optional<ContractResult> existing = tx.execute(s -> find(proposalId, idempotencyKey));
         if (existing.isPresent()) {
             return existing.get();
@@ -67,7 +72,7 @@ public class ContractService {
     private ContractResult create(Long proposalId, String key) {
         Proposal p = proposalService.get(proposalId);
         if (p.getStatus() == ProposalStatus.APROVADA && p.getValidUntil() != null
-                && p.getValidUntil().isBefore(LocalDate.now())) {
+                && p.getValidUntil().isBefore(LocalDate.now(ZoneOffset.UTC))) {
             throw new BusinessRuleException("Proposta com validade vencida");
         }
         proposalService.move(p, ProposalStatus.CONTRATADA, "Aceite do cliente"); // valida APROVADA -> CONTRATADA

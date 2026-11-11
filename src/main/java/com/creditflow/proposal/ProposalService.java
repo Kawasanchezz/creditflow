@@ -1,14 +1,20 @@
 package com.creditflow.proposal;
 
 import com.creditflow.common.NotFoundException;
+import com.creditflow.policy.Outcome;
 import com.creditflow.policy.PolicyContext;
 import com.creditflow.policy.PolicyDecision;
 import com.creditflow.policy.PolicyEngine;
+import com.creditflow.policy.RuleEvaluation;
+import com.creditflow.policy.Verdict;
 import com.creditflow.simulation.AmortizationSystem;
 import com.creditflow.simulation.SimulationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,6 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class ProposalService {
+    private static final Logger log = LoggerFactory.getLogger(ProposalService.class);
+
     private final ProposalRepository proposals;
     private final ProposalHistoryRepository history;
     private final CreditPolicyResultRepository policyResults;
@@ -80,7 +88,7 @@ public class ProposalService {
                     firstPayment, p.getRelationshipMonths());
         });
 
-        PolicyDecision decision = policy.evaluate(ctx);
+        PolicyDecision decision = evaluateOrManualReview(ctx);
 
         return tx.execute(status -> {
             Proposal p = get(id);
@@ -95,6 +103,17 @@ public class ProposalService {
         });
     }
 
+    /** Falha inesperada na politica nao pode deixar a proposta presa em EM_ANALISE: vai para analise manual. */
+    private PolicyDecision evaluateOrManualReview(PolicyContext ctx) {
+        try {
+            return policy.evaluate(ctx);
+        } catch (RuntimeException e) {
+            log.error("Policy evaluation failed for customer {}", ctx.customerId(), e);
+            return new PolicyDecision(Verdict.MANUAL_REVIEW, List.of(new RuleEvaluation(
+                    "POLICY_ERROR", Outcome.MANUAL, "Falha ao avaliar a politica; encaminhado para analise manual")));
+        }
+    }
+
     @Transactional
     public Proposal manualDecision(Long id, boolean approved, String reason) {
         Proposal p = get(id);
@@ -106,11 +125,10 @@ public class ProposalService {
         return p;
     }
 
-    /** Expira propostas aprovadas cujo prazo de validade passou. */
     @Scheduled(cron = "0 0 1 * * *")
     @Transactional
     public int expireOverdue() {
-        List<Proposal> overdue = proposals.findByStatusAndValidUntilBefore(ProposalStatus.APROVADA, LocalDate.now());
+        List<Proposal> overdue = proposals.findByStatusAndValidUntilBefore(ProposalStatus.APROVADA, LocalDate.now(ZoneOffset.UTC));
         overdue.forEach(p -> move(p, ProposalStatus.EXPIRADA, "Prazo de validade vencido"));
         return overdue.size();
     }
@@ -124,6 +142,6 @@ public class ProposalService {
 
     private void approve(Proposal p, String reason) {
         move(p, ProposalStatus.APROVADA, reason);
-        p.setValidUntil(LocalDate.now().plusDays(validityDays));
+        p.setValidUntil(LocalDate.now(ZoneOffset.UTC).plusDays(validityDays));
     }
 }
