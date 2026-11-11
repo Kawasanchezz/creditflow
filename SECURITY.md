@@ -24,7 +24,7 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 - **Basic accounts only.** HTTP Basic with in-memory accounts (`analyst`, `customer-N`) whose passwords come from environment variables; customers can only access their own proposals (404 otherwise). There is no account management, lockout, password rotation or TLS in this repository: run it behind TLS and replace it with an OIDC identity provider before any real use.
 - **No rate limiting or request throttling.** Input limits bound the cost of a single request, but not the request rate.
-- Spring Boot is on the 3.5.x line; keep Dependabot updates enabled.
+- **Open CVEs in `spring-webmvc` 6.2.19 (CVE-2026-47884, CVE-2026-47890, critical).** Trivy reports the fix only in Spring Framework 7.0.9, which requires Spring Boot 4 (a major upgrade). Accepted for this academic project; upgrade to Boot 4 before any real use. All other HIGH/CRITICAL findings (Tomcat, Jackson, PostgreSQL driver, apt) were fixed and re-scanned clean.
 - The Swagger UI is disabled by default and only enabled by `docker-compose.yml` for local demos.
 - The CET is an approximation (no fees or IOF); it is not a regulatory figure.
 
