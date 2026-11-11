@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/creditflow}
     username: ${DB_USER:creditflow}
-    password: ${DB_PASSWORD:creditflow}
+    password: ${DB_PASSWORD}
   jpa:
     open-in-view: false
     hibernate:
@@ -32,3 +32,9 @@ resilience4j:
       score:
         max-attempts: 3
         wait-duration: 200ms
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
