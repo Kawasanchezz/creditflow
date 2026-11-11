@@ -19,7 +19,6 @@ public class ContractController {
         return installments.list(id).stream().map(InstallmentResponse::from).toList();
     }
 
-    /** Antecipacao com desconto de juros (opcional no MVP). */
     @PostMapping("/{id}/installments/{number}/prepay")
     public InstallmentResponse prepay(@PathVariable Long id, @PathVariable int number) {
         return InstallmentResponse.from(installments.prepay(id, number));
