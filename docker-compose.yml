@@ -1,24 +1,20 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
     environment:
       POSTGRES_DB: creditflow
-      POSTGRES_USER: creditflow
-      POSTGRES_PASSWORD: creditflow
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER:-creditflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no arquivo .env (copie de .env.example)}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U creditflow"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   score-mock:
-    image: wiremock/wiremock:3.9.1
-    ports:
-      - "8089:8080"
+    image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
     volumes:
-      - ./wiremock:/home/wiremock
+      - ./wiremock:/home/wiremock:ro
 
   app:
     build: .
@@ -29,8 +25,11 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://db:5432/creditflow
-      DB_USER: creditflow
-      DB_PASSWORD: creditflow
+      DB_USER: ${DB_USER:-creditflow}
+      DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no arquivo .env (copie de .env.example)}
       SCORE_URL: http://score-mock:8080
+      SWAGGER_UI_ENABLED: "true"
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
