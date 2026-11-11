@@ -64,7 +64,7 @@ class PipelineIntegrationTest {
     private String submit(long id) throws Exception {
         String res = mvc.perform(post("/api/proposals/" + id + "/submit"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        return json.readTree(res).get("status").asText();
+        return json.readTree(res).get("status").asString();
     }
 
     @Test
