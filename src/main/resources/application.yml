@@ -13,6 +13,8 @@ spring:
     enabled: true
 
 creditflow:
+  security:
+    analyst-password: ${ANALYST_PASSWORD}
   proposal:
     validity-days: ${PROPOSAL_VALIDITY_DAYS:7}
   score:

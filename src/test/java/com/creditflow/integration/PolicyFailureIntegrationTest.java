@@ -15,18 +15,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Regressao: excecao inesperada na politica nao deixa a proposta presa em EM_ANALISE. */
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(roles = "ANALYST")
 class PolicyFailureIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
-    @MockBean PolicyEngine policyEngine;
+    @MockitoBean PolicyEngine policyEngine;
 
     @Test
     void unexpectedPolicyErrorGoesToManualReview() throws Exception {

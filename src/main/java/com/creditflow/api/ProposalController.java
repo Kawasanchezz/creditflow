@@ -4,10 +4,12 @@ import com.creditflow.api.ApiDtos.*;
 import com.creditflow.contract.ContractResult;
 import com.creditflow.contract.ContractService;
 import com.creditflow.proposal.ProposalService;
+import com.creditflow.security.AccessGuard;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,36 +17,43 @@ import org.springframework.web.bind.annotation.*;
 public class ProposalController {
     private final ProposalService proposals;
     private final ContractService contracts;
+    private final AccessGuard guard;
 
-    public ProposalController(ProposalService proposals, ContractService contracts) {
+    public ProposalController(ProposalService proposals, ContractService contracts, AccessGuard guard) {
         this.proposals = proposals;
         this.contracts = contracts;
+        this.guard = guard;
     }
 
     @PostMapping
-    public ResponseEntity<ProposalResponse> create(@Valid @RequestBody ProposalRequest r) {
+    public ResponseEntity<ProposalResponse> create(@Valid @RequestBody ProposalRequest r, Authentication auth) {
+        guard.checkCustomer(auth, r.customerId());
         var p = proposals.create(r.customerId(), r.amount(), r.term(), r.monthlyRate(), r.system(),
                 r.monthlyIncome(), r.existingCommitments(), r.relationshipMonths());
         return ResponseEntity.created(URI.create("/api/proposals/" + p.getId())).body(ProposalResponse.from(p));
     }
 
     @GetMapping("/{id}")
-    public ProposalResponse get(@PathVariable Long id) {
+    public ProposalResponse get(@PathVariable Long id, Authentication auth) {
+        guard.checkProposal(auth, id);
         return ProposalResponse.from(proposals.get(id));
     }
 
     @GetMapping("/{id}/history")
-    public List<HistoryResponse> history(@PathVariable Long id) {
+    public List<HistoryResponse> history(@PathVariable Long id, Authentication auth) {
+        guard.checkProposal(auth, id);
         return proposals.history(id).stream().map(HistoryResponse::from).toList();
     }
 
     @GetMapping("/{id}/policy-results")
-    public List<PolicyResultResponse> policyResults(@PathVariable Long id) {
+    public List<PolicyResultResponse> policyResults(@PathVariable Long id, Authentication auth) {
+        guard.checkProposal(auth, id);
         return proposals.policyResults(id).stream().map(PolicyResultResponse::from).toList();
     }
 
     @PostMapping("/{id}/submit")
-    public ProposalResponse submit(@PathVariable Long id) {
+    public ProposalResponse submit(@PathVariable Long id, Authentication auth) {
+        guard.checkProposal(auth, id);
         return ProposalResponse.from(proposals.submit(id));
     }
 
@@ -56,7 +65,9 @@ public class ProposalController {
     /** Contratacao idempotente: repetir com a mesma Idempotency-Key devolve o mesmo contrato (200). */
     @PostMapping("/{id}/contract")
     public ResponseEntity<ContractResponse> contract(@PathVariable Long id,
-                                                     @RequestHeader("Idempotency-Key") String key) {
+                                                     @RequestHeader("Idempotency-Key") String key,
+                                                     Authentication auth) {
+        guard.checkProposal(auth, id);
         ContractResult result = contracts.contract(id, key);
         ContractResponse body = ContractResponse.from(result);
         return result.created()

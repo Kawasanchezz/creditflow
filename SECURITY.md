@@ -12,6 +12,7 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 ## Controls in place
 
+- Authentication (HTTP Basic, BCrypt) and server-side ownership checks on every proposal and contract endpoint; only analysts can decide manual reviews.
 - Input validation on every request field (ranges, digits, maximum term of 480 months) and a 400 response that does not expose internal class names.
 - All money math uses `BigDecimal`; state transitions are validated in one place; contract creation is idempotent and enforced by database `UNIQUE` constraints.
 - Container runs as a non-root user; base images are pinned by digest; database and score mock are not published to the host; the API port is bound to `127.0.0.1`.
@@ -21,9 +22,9 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 ## Known limitations (not fixed on purpose)
 
-- **No authentication or authorization.** Any client that can reach the API can read or contract any proposal by id (IDOR by design of the exercise). Do not expose it to untrusted networks; adding Spring Security with ownership checks is the next step.
+- **Basic accounts only.** HTTP Basic with in-memory accounts (`analyst`, `customer-N`) whose passwords come from environment variables; customers can only access their own proposals (404 otherwise). There is no account management, lockout, password rotation or TLS in this repository: run it behind TLS and replace it with an OIDC identity provider before any real use.
 - **No rate limiting or request throttling.** Input limits bound the cost of a single request, but not the request rate.
-- **Spring Boot 3.3.x is out of open-source support.** It is kept at the latest patch (3.3.13); moving to a supported 3.5.x line is recommended before any real use.
+- Spring Boot is on the 3.5.x line; keep Dependabot updates enabled.
 - The Swagger UI is disabled by default and only enabled by `docker-compose.yml` for local demos.
 - The CET is an approximation (no fees or IOF); it is not a regulatory figure.
 

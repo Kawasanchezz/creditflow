@@ -27,30 +27,41 @@ Documentação interativa da API (Swagger UI em `http://localhost:8080/swagger-u
 ## Como rodar
 
 ```bash
-cp .env.example .env              # defina DB_PASSWORD (o .env nunca é versionado)
+cp .env.example .env              # defina as senhas (o .env nunca é versionado)
 docker compose up --build        # app em 127.0.0.1:8080; PostgreSQL e mock do score (WireMock) só na rede interna do Compose
 mvn verify                       # testes + JaCoCo (falha se cobertura de simulation/policy < 90%)
 ```
 
+## Autenticação
+
+A API usa HTTP Basic (stateless). Contas em memória, com senhas vindas do `.env`:
+
+- `analyst` (`ANALYST_PASSWORD`): acessa tudo e é o único que decide a análise manual.
+- `customer-1` … `customer-4` (`CUSTOMER_PASSWORD`): cada cliente só vê e contrata as próprias propostas. Recurso de outro cliente responde 404.
+
+Em produção a identidade viria de um provedor OIDC e o tráfego passaria por TLS.
+
 Fluxo de exemplo:
 
 ```bash
+AUTH="customer-1:$CUSTOMER_PASSWORD"
+
 # 1. simulação (sem persistir)
-curl -X POST localhost:8080/api/simulations -H 'Content-Type: application/json' \
+curl -u "$AUTH" -X POST localhost:8080/api/simulations -H 'Content-Type: application/json' \
   -d '{"system":"PRICE","amount":10000,"monthlyRate":0.0199,"term":12}'
 
 # 2. criar proposta (SIMULADA), 3. enviar para análise
-curl -X POST localhost:8080/api/proposals -H 'Content-Type: application/json' \
+curl -u "$AUTH" -X POST localhost:8080/api/proposals -H 'Content-Type: application/json' \
   -d '{"customerId":1,"system":"SAC","amount":10000,"monthlyRate":0.0199,"term":12,"monthlyIncome":8000,"existingCommitments":0,"relationshipMonths":24}'
-curl -X POST localhost:8080/api/proposals/1/submit
+curl -u "$AUTH" -X POST localhost:8080/api/proposals/1/submit
 
 # 4. contratar (idempotente: repetir devolve o mesmo contrato)
-curl -X POST localhost:8080/api/proposals/1/contract -H 'Idempotency-Key: abc-123'
+curl -u "$AUTH" -X POST localhost:8080/api/proposals/1/contract -H 'Idempotency-Key: abc-123'
 ```
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html` (OpenAPI em `/v3/api-docs`). Fica desligado por padrão e é ligado só no `docker-compose.yml` (`SWAGGER_UI_ENABLED=true`).
 
-Demais endpoints: `GET /api/proposals/{id}`, `/history`, `/policy-results`, `POST /{id}/manual-decision`, `GET /api/contracts/{id}/installments`, `POST /api/contracts/{id}/installments/{n}/prepay`.
+Demais endpoints: `GET /api/proposals/{id}`, `/history`, `/policy-results`, `POST /{id}/manual-decision` (só analista), `GET /api/contracts/{id}/installments`, `POST /api/contracts/{id}/installments/{n}/prepay`.
 
 O mock do score (`wiremock/mappings/score.json`) devolve 720 por padrão; cliente `2` → score 300 (recusa), cliente `3` → resposta com 5 s de atraso (timeout), cliente `4` → HTTP 500. Os dois últimos caem em `ANALISE_MANUAL`.
 

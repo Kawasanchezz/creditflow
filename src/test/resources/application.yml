@@ -8,12 +8,17 @@ spring:
     hibernate:
       ddl-auto: validate
 creditflow:
+  security:
+    analyst-password: test-analyst-pw
+    customer-passwords:
+      1: test-customer-1-pw
+      2: test-customer-2-pw
   proposal:
     validity-days: 7
   score:
     base-url: http://localhost:0
     connect-timeout-ms: 1000
-    read-timeout-ms: 1500
+    read-timeout-ms: 2500
   policy:
     min-income: 1000.00
     max-commitment-ratio: 0.30

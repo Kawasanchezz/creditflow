@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** Fluxo completo com banco (H2 modo PostgreSQL + Flyway) e WireMock no lugar do servico de score. */
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(roles = "ANALYST")
 class PipelineIntegrationTest {
 
     @RegisterExtension
@@ -145,7 +147,7 @@ class PipelineIntegrationTest {
 
     @Test
     void scoreTimeoutFallsBackToManualReview() throws Exception {
-        score.stubFor(WireMock.get(urlPathEqualTo("/score/4")).willReturn(okJson("{\"score\":800}").withFixedDelay(3500)));
+        score.stubFor(WireMock.get(urlPathEqualTo("/score/4")).willReturn(okJson("{\"score\":800}").withFixedDelay(4500)));
         long id = createProposal(4, "8000", 24);
         assertThat(submit(id)).isEqualTo("ANALISE_MANUAL");
     }
@@ -201,6 +203,6 @@ class PipelineIntegrationTest {
         mvc.perform(get("/api/proposals/999999"))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("X-Frame-Options", "DENY"))
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")));
     }
 }
