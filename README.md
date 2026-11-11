@@ -27,7 +27,8 @@ Documentação interativa da API (Swagger UI em `http://localhost:8080/swagger-u
 ## Como rodar
 
 ```bash
-docker compose up --build        # app :8080, PostgreSQL :5432, mock do score (WireMock) :8089
+cp .env.example .env              # defina DB_PASSWORD (o .env nunca é versionado)
+docker compose up --build        # app em 127.0.0.1:8080; PostgreSQL e mock do score (WireMock) só na rede interna do Compose
 mvn verify                       # testes + JaCoCo (falha se cobertura de simulation/policy < 90%)
 ```
 
@@ -47,7 +48,7 @@ curl -X POST localhost:8080/api/proposals/1/submit
 curl -X POST localhost:8080/api/proposals/1/contract -H 'Idempotency-Key: abc-123'
 ```
 
-Swagger UI: `http://localhost:8080/swagger-ui/index.html` (OpenAPI em `/v3/api-docs`).
+Swagger UI: `http://localhost:8080/swagger-ui/index.html` (OpenAPI em `/v3/api-docs`). Fica desligado por padrão e é ligado só no `docker-compose.yml` (`SWAGGER_UI_ENABLED=true`).
 
 Demais endpoints: `GET /api/proposals/{id}`, `/history`, `/policy-results`, `POST /{id}/manual-decision`, `GET /api/contracts/{id}/installments`, `POST /api/contracts/{id}/installments/{n}/prepay`.
 
