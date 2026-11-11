@@ -520,3 +520,17 @@ target/
 # migracoes Flyway sao codigo-fonte: precisam ser versionadas apesar de *.sql acima
 !src/main/resources/db/migration/
 !src/main/resources/db/migration/*.sql
+
+# ======================================================================
+# ACRESCENTADO (auditoria de seguranca): Java/Maven, relatorios e crash dumps
+# ======================================================================
+.factorypath
+.project
+.classpath
+.settings/
+*.class
+*.hprof
+hs_err_pid*
+replay_pid*
+dependency-reduced-pom.xml
+jacoco.exec
