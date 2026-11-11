@@ -1,0 +1,118 @@
+# CreditFlow — simulador e esteira de crédito
+
+Simula empréstimos (Price e SAC), analisa o risco por uma cadeia de regras, aprova ou recusa e, se aprovado, contrata de forma idempotente gerando o cronograma de parcelas.
+
+Stack: Java 21, Spring Boot 3.3, PostgreSQL + Flyway, `BigDecimal`/`MathContext`, Resilience4j, JUnit 5, WireMock, JaCoCo, Docker, GitHub Actions.
+
+## Demonstração
+
+Price (parcela fixa) vs SAC (parcela decrescente), dados reais devolvidos pela API (R$ 10.000, 1,99% a.m., 12x):
+
+![Price vs SAC](docs/img/price-vs-sac.png)
+
+Resultado dos testes automatizados (`mvn verify`):
+
+![Testes](docs/img/tests.png)
+
+Teste ponta a ponta com `docker compose` (PostgreSQL + WireMock) e teste de concorrência:
+
+![Ponta a ponta](docs/img/e2e.png)
+
+Documentação interativa da API (Swagger UI em `http://localhost:8080/swagger-ui/index.html`, captura real do navegador):
+
+![Swagger UI](docs/img/swagger-ui.png)
+
+> Os gráficos usam a saída real da API; os painéis de teste são um resumo formatado dos resultados reais.
+
+## Como rodar
+
+```bash
+docker compose up --build        # app :8080, PostgreSQL :5432, mock do score (WireMock) :8089
+mvn verify                       # testes + JaCoCo (falha se cobertura de simulation/policy < 90%)
+```
+
+Fluxo de exemplo:
+
+```bash
+# 1. simulação (sem persistir)
+curl -X POST localhost:8080/api/simulations -H 'Content-Type: application/json' \
+  -d '{"system":"PRICE","amount":10000,"monthlyRate":0.0199,"term":12}'
+
+# 2. criar proposta (SIMULADA), 3. enviar para análise
+curl -X POST localhost:8080/api/proposals -H 'Content-Type: application/json' \
+  -d '{"customerId":1,"system":"SAC","amount":10000,"monthlyRate":0.0199,"term":12,"monthlyIncome":8000,"existingCommitments":0,"relationshipMonths":24}'
+curl -X POST localhost:8080/api/proposals/1/submit
+
+# 4. contratar (idempotente: repetir devolve o mesmo contrato)
+curl -X POST localhost:8080/api/proposals/1/contract -H 'Idempotency-Key: abc-123'
+```
+
+Swagger UI: `http://localhost:8080/swagger-ui/index.html` (OpenAPI em `/v3/api-docs`).
+
+Demais endpoints: `GET /api/proposals/{id}`, `/history`, `/policy-results`, `POST /{id}/manual-decision`, `GET /api/contracts/{id}/installments`, `POST /api/contracts/{id}/installments/{n}/prepay`.
+
+O mock do score (`wiremock/mappings/score.json`) devolve 720 por padrão; cliente `2` → score 300 (recusa), cliente `3` → resposta com 5 s de atraso (timeout), cliente `4` → HTTP 500. Os dois últimos caem em `ANALISE_MANUAL`.
+
+## Decisões de precisão
+
+- Valores monetários: `BigDecimal` com **scale = 2** e **`RoundingMode.HALF_EVEN`** (arredondamento bancário). Nunca `double`.
+- Cálculos intermediários: `MathContext` de 34 dígitos (DECIMAL128). Centralizado em `common/Money`.
+- Juros de cada parcela = `round(saldo × i)`. **A última parcela absorve o resíduo** de arredondamento (amortização = saldo restante), então o saldo final é sempre exatamente `0.00`.
+- Price usa `PMT = PV·i·(1+i)ⁿ / ((1+i)ⁿ − 1)` (equivalente a `PV·i / (1 − (1+i)⁻ⁿ)`); SAC usa `A = PV/n`, `Pₖ = A + (PV − (k−1)·A)·i`.
+- Valor mínimo: 0,01 por parcela (`amount ≥ term × 0,01`), para não existir amortização arredondada a zero.
+- `HALF_EVEN` importa: ex. 1000 a 2% a.m. em 3x tem juros de 13,465 na 2ª parcela → 13,46.
+
+## CET (aproximação)
+
+O CET informado é a **TIR** do fluxo (valor liberado contra as parcelas pagas), calculada por bisseção em `BigDecimal`, mensal e anualizada `(1+i)¹²−1`. **É uma aproximação**: não inclui tarifas, seguros nem IOF, como exige o CET regulamentado pelo Banco Central. Sem encargos, o CET é igual à taxa do contrato (coberto em teste).
+
+## Máquina de estados
+
+```mermaid
+stateDiagram-v2
+  [*] --> SIMULADA
+  SIMULADA --> EM_ANALISE: enviar proposta
+  EM_ANALISE --> APROVADA: política ok
+  EM_ANALISE --> RECUSADA: política reprova
+  EM_ANALISE --> ANALISE_MANUAL: score indisponível
+  ANALISE_MANUAL --> APROVADA
+  ANALISE_MANUAL --> RECUSADA
+  APROVADA --> CONTRATADA: aceite do cliente
+  CONTRATADA --> ATIVA: liberação e parcelas geradas
+  APROVADA --> EXPIRADA: prazo de validade
+```
+
+- `Proposal.transitionTo` é o único ponto de mudança de status; transições fora do diagrama lançam `InvalidTransitionException` (HTTP 409). Contratar uma proposta recusada é impossível.
+- `proposal_history` é imutável (`@Immutable`, só inserção); cada mudança registra origem, destino, motivo e instante.
+- `@Version` na proposta evita atualizações concorrentes silenciosas.
+- Propostas `APROVADA` com validade vencida são expiradas por job diário (`ProposalService.expireOverdue`) e não podem ser contratadas.
+
+## Política de crédito (Chain of Responsibility)
+
+`MIN_INCOME → INCOME_COMMITMENT → RELATIONSHIP → SCORE`. Cada elo (`PolicyHandler`) passa adiante (`PASS`), recusa (`REJECT`) ou envia para análise manual (`MANUAL`); se todos passam, aprova. Cada avaliação e seu motivo ficam em `credit_policy_result`. A chamada externa (score) é a última, e a cadeia para na primeira recusa, então regras baratas evitam a chamada. Limites configuráveis em `creditflow.policy.*` (em produção, via Parameter Store).
+
+## Serviço de score instável
+
+`HttpScoreClient`: timeouts de conexão/leitura, `@Retry` do Resilience4j (3 tentativas, 200 ms) e fallback que devolve vazio → `ScoreRule` retorna `MANUAL` → proposta vai para `ANALISE_MANUAL`. A chamada fica fora de transação de banco para não segurar conexão durante timeouts.
+
+## Contratação idempotente
+
+1. `Idempotency-Key` já usada na mesma proposta → devolve o contrato existente (200). Em outra proposta → 409.
+2. Proposta já contratada com outra chave → devolve o contrato existente.
+3. Corrida entre requisições simultâneas: `UNIQUE(proposal_id)`, `UNIQUE(idempotency_key)` e `@Version`; quem perde relê o contrato vencedor.
+
+## Antecipação (opcional)
+
+Desconto simples pro rata sobre a parcela: `valor = parcela / (1 + i·dias/30)`, nunca abaixo da amortização. Aproximação de estudo.
+
+## Testes
+
+- Tabelas parametrizadas de Price e SAC com valores esperados (confira com `=PGTO()` na planilha).
+- Propriedade (1000 cenários com semente fixa): soma das amortizações = valor financiado e saldo final = 0, com scale 2.
+- Matriz de transições de estado completa; cadeia de política com cenários de fronteira.
+- Integração (H2 em modo PostgreSQL + Flyway + WireMock): fluxo completo, idempotência, score com erro 500 e timeout, retry limitado, proposta recusada não contratável.
+- JaCoCo exige ≥ 90% de linhas em `simulation` e `policy` (`mvn verify`).
+
+## AWS (alvo de deploy)
+
+ECS Fargate + RDS PostgreSQL; parâmetros de política (`POLICY_*`) e credenciais vindos do Systems Manager Parameter Store como variáveis de ambiente da task; logs no CloudWatch. Não incluído como IaC neste repositório.

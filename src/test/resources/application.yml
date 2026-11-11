@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:creditflow;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+creditflow:
+  proposal:
+    validity-days: 7
+  score:
+    base-url: http://localhost:0
+    connect-timeout-ms: 1000
+    read-timeout-ms: 1500
+  policy:
+    min-income: 1000.00
+    max-commitment-ratio: 0.30
+    min-relationship-months: 3
+    min-score: 500
+resilience4j:
+  retry:
+    instances:
+      score:
+        max-attempts: 2
+        wait-duration: 20ms

@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: creditflow
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/creditflow}
+    username: ${DB_USER:creditflow}
+    password: ${DB_PASSWORD:creditflow}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+creditflow:
+  proposal:
+    validity-days: ${PROPOSAL_VALIDITY_DAYS:7}
+  score:
+    base-url: ${SCORE_URL:http://localhost:8089}
+    connect-timeout-ms: 500
+    read-timeout-ms: 1000
+  # Parametros da politica: em producao viriam do SSM Parameter Store (injetados como env vars no ECS).
+  policy:
+    min-income: ${POLICY_MIN_INCOME:1000.00}
+    max-commitment-ratio: ${POLICY_MAX_COMMITMENT_RATIO:0.30}
+    min-relationship-months: ${POLICY_MIN_RELATIONSHIP_MONTHS:3}
+    min-score: ${POLICY_MIN_SCORE:500}
+
+resilience4j:
+  retry:
+    instances:
+      score:
+        max-attempts: 3
+        wait-duration: 200ms
