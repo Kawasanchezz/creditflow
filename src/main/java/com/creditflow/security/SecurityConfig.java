@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .httpBasic(b -> b.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .headers(h -> h.referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)).addHeaderWriter(csp))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**", "/error").permitAll()
+                        .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**", "/error", "/api/demo").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/proposals/*/manual-decision").hasRole("ANALYST")
                         .requestMatchers("/api/**").hasAnyRole("ANALYST", "CUSTOMER")

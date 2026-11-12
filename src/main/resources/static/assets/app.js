@@ -3,7 +3,7 @@
 const state = {
   auth: null, me: null, tab: 'sim',
   simInput: { system: 'PRICE', amount: '10000', rate: '1.99', term: '12' },
-  sim: null, proposals: [], selectedId: null, detail: null, keys: {}
+  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false
 };
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -83,6 +83,35 @@ const statusClass = v => ({
 const badge = v => h('span', { class: 'status ' + statusClass(v), text: v.replace('_', ' ') });
 
 /* ---------- login ---------- */
+async function signIn(user, pass) {
+  state.auth = basic(user, pass);
+  try {
+    state.me = await api('/api/me');
+    state.tab = 'sim';
+    render();
+    return true;
+  } catch (e) {
+    state.auth = null;
+    return false;
+  }
+}
+
+function demoCard() {
+  const box = h('section', { class: 'demo-card', hidden: true });
+  fetch('/api/demo', { credentials: 'omit' }).then(r => (r.ok ? r.json() : null)).then(info => {
+    if (!info || !info.enabled) return;
+    state.demo = true;
+    box.hidden = false;
+    box.append(h('h2', { text: 'Modo demonstração' }),
+      h('p', { class: 'label', text: 'Entre com um clique, sem senha. Os dados são fictícios.' }),
+      h('div', { class: 'demo-buttons' }, info.accounts.map(a => h('button', {
+        class: 'btn lime', type: 'button', text: a.label,
+        onclick: () => signIn(a.username, a.password)
+      }))));
+  }).catch(() => {});
+  return box;
+}
+
 function loginView() {
   const err = h('p', { class: 'note', role: 'alert' });
   const user = h('input', { id: 'user', autocomplete: 'username', required: true });
@@ -91,15 +120,7 @@ function loginView() {
     onsubmit: async ev => {
       ev.preventDefault();
       err.textContent = '';
-      state.auth = basic(user.value.trim(), pass.value);
-      try {
-        state.me = await api('/api/me');
-        state.tab = 'sim';
-        render();
-      } catch (e) {
-        state.auth = null;
-        err.textContent = 'Usuário ou senha inválidos.';
-      }
+      if (!(await signIn(user.value.trim(), pass.value))) err.textContent = 'Usuário ou senha inválidos.';
     }
   },
   h('div', { class: 'field' }, h('label', { for: 'user', text: 'Usuário' }), user),
@@ -110,6 +131,7 @@ function loginView() {
     logoSvg(),
     h('h1', { text: 'CreditFlow' }),
     h('p', { class: 'label', text: 'Simulador e esteira de crédito. Projeto acadêmico de demonstração.' }),
+    demoCard(),
     form);
 }
 
@@ -125,6 +147,7 @@ function logoSvg() {
 function shell(content) {
   const tabs = [['sim', 'Simulador'], ['prop', 'Propostas']];
   return h('div', { class: 'shell' },
+    state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
     h('header', { class: 'top' },
       h('div', { class: 'hello' }, h('span', { class: 'avatar', text: state.me.username[0] }), 'Olá, ' + state.me.username),
       h('nav', { class: 'tabs' }, tabs.map(([id, label]) => h('button', {

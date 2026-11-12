@@ -116,3 +116,9 @@ dialog .actions { justify-content: flex-end; }
   .tabs { order: 3; width: 100%; margin: 0; }
   .big { font-size: 40px; }
 }
+
+.demo-card { background: var(--lime-soft); border-radius: 22px; padding: 18px 20px; margin: 20px 0 6px; }
+.demo-card[hidden] { display: none; }
+.demo-card h2 { margin: 0 0 4px; font-size: 16px; }
+.demo-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.demo-banner { background: var(--green); color: var(--lime); text-align: center; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; margin-bottom: 16px; }
