@@ -44,6 +44,11 @@ public class AccessGuard {
         }
     }
 
+    /** Id do cliente cujas propostas a pessoa pode listar; nulo para analistas (todas). */
+    public Long visibleCustomerId(Authentication auth) {
+        return isAnalyst(auth) ? null : customerIdOf(auth);
+    }
+
     private static boolean isAnalyst(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ANALYST"));
     }

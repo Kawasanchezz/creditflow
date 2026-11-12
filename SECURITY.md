@@ -12,6 +12,7 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 ## Controls in place
 
+- CSRF protection stays enabled for any request that can carry browser-ambient credentials (cookies); it is skipped only when the credential travels in the Authorization header or the request has no cookies. The Basic challenge (WWW-Authenticate) is suppressed so browsers never cache and replay credentials. The web UI keeps credentials in memory only and is served with a strict Content-Security-Policy.
 - Authentication (HTTP Basic, BCrypt) and server-side ownership checks on every proposal and contract endpoint; only analysts can decide manual reviews.
 - Input validation on every request field (ranges, digits, maximum term of 480 months) and a 400 response that does not expose internal class names.
 - All money math uses `BigDecimal`; state transitions are validated in one place; contract creation is idempotent and enforced by database `UNIQUE` constraints.
