@@ -58,6 +58,10 @@ public class ContractService {
         }
     }
 
+    public Optional<ContractResult> lookup(Long proposalId) {
+        return tx.execute(s -> contracts.findByProposalId(proposalId).map(c -> view(c, false)));
+    }
+
     private Optional<ContractResult> find(Long proposalId, String key) {
         Optional<Contract> byKey = contracts.findByIdempotencyKey(key);
         if (byKey.isPresent()) {

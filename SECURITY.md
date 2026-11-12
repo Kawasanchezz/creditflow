@@ -12,6 +12,7 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 ## Controls in place
 
+- CSRF protection stays enabled for any request that can carry browser-ambient credentials (cookies); it is skipped only when the credential travels in the Authorization header or the request has no cookies. The Basic challenge (WWW-Authenticate) is suppressed so browsers never cache and replay credentials. The web UI keeps credentials in memory only and is served with a strict Content-Security-Policy.
 - Authentication (HTTP Basic, BCrypt) and server-side ownership checks on every proposal and contract endpoint; only analysts can decide manual reviews.
 - Input validation on every request field (ranges, digits, maximum term of 480 months) and a 400 response that does not expose internal class names.
 - All money math uses `BigDecimal`; state transitions are validated in one place; contract creation is idempotent and enforced by database `UNIQUE` constraints.
@@ -24,6 +25,7 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 
 - **Basic accounts only.** HTTP Basic with in-memory accounts (`analyst`, `customer-N`) whose passwords come from environment variables; customers can only access their own proposals (404 otherwise). There is no account management, lockout, password rotation or TLS in this repository: run it behind TLS and replace it with an OIDC identity provider before any real use.
 - **No rate limiting or request throttling.** Input limits bound the cost of a single request, but not the request rate.
+- **Demo mode** (`docker-compose.demo.yml`, off by default): `GET /api/demo` publishes public sample credentials so the login screen can offer one-click sign-in, and sample data is seeded. It exists only when `creditflow.demo.enabled=true`, logs a warning at startup, binds to 127.0.0.1 and must never be enabled outside a local evaluation machine.
 - Dependencies and the container image were scanned with Trivy (all severities) and reported no known vulnerabilities at the time of the last scan; new CVEs appear over time, so keep Dependabot enabled and rescan before releases.
 - The Swagger UI is disabled by default and only enabled by `docker-compose.yml` for local demos.
 - The CET is an approximation (no fees or IOF); it is not a regulatory figure.

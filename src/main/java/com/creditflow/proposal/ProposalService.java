@@ -62,6 +62,12 @@ public class ProposalService {
         return proposals.findById(id).orElseThrow(() -> new NotFoundException("Proposta " + id + " nao encontrada"));
     }
 
+    /** Ultimas 50 propostas; customerId nulo = todas (analista). */
+    @Transactional(readOnly = true)
+    public List<Proposal> list(Long customerId) {
+        return customerId == null ? proposals.findTop50ByOrderByIdDesc() : proposals.findTop50ByCustomerIdOrderByIdDesc(customerId);
+    }
+
     @Transactional(readOnly = true)
     public List<ProposalHistory> history(Long id) {
         get(id);

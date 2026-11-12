@@ -41,6 +41,38 @@ A API usa HTTP Basic (stateless). Contas em memória, com senhas vindas do `.env
 
 Em produção a identidade viria de um provedor OIDC e o tráfego passaria por TLS.
 
+## Modo demonstração (para avaliar sem senha)
+
+Um comando sobe tudo, com banco, mock do score e dados de exemplo, e a tela de login ganha botões de entrada com um clique (Cliente, Cliente com score instável e Analista). Não precisa de `.env`:
+
+```bash
+docker compose -f docker-compose.demo.yml up --build
+# abra http://localhost:8080 e clique em "Entrar como Cliente" ou "Entrar como Analista"
+docker compose -f docker-compose.demo.yml down -v   # para encerrar e limpar
+```
+
+Já vem com 6 propostas fictícias em estados diferentes: ativa com contrato, aprovada, recusada, duas em análise manual e uma só simulada.
+
+![Login em modo demonstração](docs/img/ui-demo-login.png)
+
+![Propostas de exemplo](docs/img/ui-demo-propostas.png)
+
+> **Aviso:** o modo demonstração publica as credenciais de exemplo em `GET /api/demo`. Ele só existe quando `CREDITFLOW_DEMO_ENABLED=true` (somente no `docker-compose.demo.yml`, ligado a `127.0.0.1`) e deve ser usado apenas localmente. O `docker-compose.yml` normal continua exigindo senha.
+
+## Interface web
+
+Com a aplicação no ar, abra **http://localhost:8080** e entre com `customer-1` (senha `CUSTOMER_PASSWORD` do `.env`) ou `analyst` (`ANALYST_PASSWORD`).
+
+- **Simulador:** Price ou SAC, parcelas, juros totais, CET aproximado e gráfico de composição.
+- **Propostas:** cria a proposta a partir da simulação, envia para análise, mostra o resultado de cada regra da política, o histórico de estados e, depois da contratação, o cronograma com antecipação de parcelas. O analista também decide as análises manuais.
+- A tela da Idempotency-Key tem o botão "Repetir pedido (mesma chave)": devolve o mesmo contrato, sem duplicar.
+
+![Simulador](docs/img/ui-simulador.png)
+
+![Propostas](docs/img/ui-propostas.png)
+
+Front-end em HTML, CSS e JavaScript puros, sem dependências nem CDN, servido pelo próprio Spring Boot com Content-Security-Policy restritiva. As credenciais ficam só na memória da página (nada em cookie, `localStorage` ou `sessionStorage`).
+
 Fluxo de exemplo:
 
 ```bash

@@ -1,37 +1,58 @@
 package com.creditflow.security;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.header.HeaderWriter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
- * API stateless com HTTP Basic: sem sessao nem cookie, entao CSRF nao se aplica.
+ * API stateless com HTTP Basic: sem sessao e sem cookies emitidos.
+ * A protecao CSRF continua ativa para qualquer requisicao que possa carregar credencial ambiente do navegador:
+ * so e dispensada quando a credencial vai explicita no cabecalho Authorization (um site de terceiros nao
+ * consegue defini-lo) ou quando a requisicao nao traz cookie nenhum. O desafio WWW-Authenticate e suprimido
+ * para que o navegador nunca guarde a credencial Basic e a reenvie sozinho.
  * Papeis: ANALYST (acesso total, decide analise manual) e CUSTOMER (apenas as proprias propostas).
  */
 @Configuration
 public class SecurityConfig {
 
+    private static final String CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+            + "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable)
+        RequestMatcher noAmbientCredentials = (HttpServletRequest r) ->
+                r.getHeader(HttpHeaders.AUTHORIZATION) != null || r.getCookies() == null;
+        RequestMatcher apiDocs = (HttpServletRequest r) ->
+                r.getRequestURI().startsWith("/swagger-ui") || r.getRequestURI().startsWith("/v3/api-docs");
+        HeaderWriter csp = new DelegatingRequestMatcherHeaderWriter(
+                (HttpServletRequest r) -> !apiDocs.matches(r), new StaticHeadersWriter("Content-Security-Policy", CSP));
+
+        http.csrf(c -> c.ignoringRequestMatchers(noAmbientCredentials))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .httpBasic(Customizer.withDefaults())
-                .headers(h -> h.referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)))
+                .httpBasic(b -> b.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .headers(h -> h.referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)).addHeaderWriter(csp))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**", "/error", "/api/demo").permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/proposals/*/manual-decision").hasRole("ANALYST")
                         .requestMatchers("/api/**").hasAnyRole("ANALYST", "CUSTOMER")
                         .anyRequest().denyAll());

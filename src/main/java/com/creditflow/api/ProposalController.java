@@ -2,6 +2,7 @@ package com.creditflow.api;
 
 import com.creditflow.api.ApiDtos.*;
 import com.creditflow.contract.ContractResult;
+import com.creditflow.common.NotFoundException;
 import com.creditflow.contract.ContractService;
 import com.creditflow.proposal.ProposalService;
 import com.creditflow.security.AccessGuard;
@@ -31,6 +32,18 @@ public class ProposalController {
         var p = proposals.create(r.customerId(), r.amount(), r.term(), r.monthlyRate(), r.system(),
                 r.monthlyIncome(), r.existingCommitments(), r.relationshipMonths());
         return ResponseEntity.created(URI.create("/api/proposals/" + p.getId())).body(ProposalResponse.from(p));
+    }
+
+    @GetMapping
+    public List<ProposalResponse> list(Authentication auth) {
+        return proposals.list(guard.visibleCustomerId(auth)).stream().map(ProposalResponse::from).toList();
+    }
+
+    @GetMapping("/{id}/contract")
+    public ContractResponse contractOf(@PathVariable Long id, Authentication auth) {
+        guard.checkProposal(auth, id);
+        return contracts.lookup(id).map(ContractResponse::from)
+                .orElseThrow(() -> new NotFoundException("Proposta sem contrato"));
     }
 
     @GetMapping("/{id}")
