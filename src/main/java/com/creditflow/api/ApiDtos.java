@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -43,7 +44,8 @@ public final class ApiDtos {
                                   @Min(0) @Max(1200) int relationshipMonths) {
     }
 
-    public record ManualDecisionRequest(boolean approved, @NotBlank @Size(max = 400) String reason) {
+    public record ManualDecisionRequest(@NotNull Boolean approved,
+                                        @NotBlank @Size(max = 400) @Pattern(regexp = "[^\\x00]*", message = "caracteres de controle nao permitidos") String reason) {
     }
 
     public record ProposalResponse(Long id, Long customerId, BigDecimal amount, int term, BigDecimal monthlyRate,

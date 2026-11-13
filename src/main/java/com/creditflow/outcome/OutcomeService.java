@@ -1,5 +1,6 @@
 package com.creditflow.outcome;
 
+import com.creditflow.common.InvalidInputException;
 import com.creditflow.common.BusinessRuleException;
 import com.creditflow.proposal.CreditPolicyResult;
 import com.creditflow.proposal.Proposal;
@@ -62,7 +63,7 @@ public class OutcomeService {
             throw new BusinessRuleException("Desfecho " + type + " exige proposta ATIVA (com contrato)");
         }
         if (occurredOn.isAfter(LocalDate.now(ZoneOffset.UTC))) {
-            throw new IllegalArgumentException("occurredOn nao pode estar no futuro");
+            throw new InvalidInputException("occurredOn nao pode estar no futuro");
         }
         DecisionOutcome saved = outcomes.save(new DecisionOutcome(proposalId, type, detail, occurredOn, recordedBy));
         return view(saved, contextOf(proposalId));
@@ -80,7 +81,7 @@ public class OutcomeService {
     public List<SummaryRow> summary() {
         Map<Long, Context> cache = new HashMap<>();
         Map<Key, Long> counts = new LinkedHashMap<>();
-        for (DecisionOutcome o : outcomes.findTop5000ByOrderByIdDesc()) {
+        for (DecisionOutcome o : outcomes.findTop1000ByOrderByIdDesc()) {
             Context ctx = cache.computeIfAbsent(o.getProposalId(), this::contextOf);
             counts.merge(new Key(ctx.policyVersion(), ctx.decision(), o.getType(), signal(ctx.decision(), o.getType())), 1L, Long::sum);
         }

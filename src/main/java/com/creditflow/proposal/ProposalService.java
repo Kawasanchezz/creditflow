@@ -1,5 +1,6 @@
 package com.creditflow.proposal;
 
+import com.creditflow.common.BusinessRuleException;
 import com.creditflow.common.NotFoundException;
 import com.creditflow.policy.Outcome;
 import com.creditflow.policy.PolicyContext;
@@ -88,7 +89,9 @@ public class ProposalService {
     public Proposal submit(Long id) {
         PolicyContext ctx = tx.execute(status -> {
             Proposal p = get(id);
-            move(p, ProposalStatus.EM_ANALISE, "Proposta enviada para analise");
+            if (p.getStatus() != ProposalStatus.EM_ANALISE) { // EM_ANALISE: reavalia uma analise interrompida
+                move(p, ProposalStatus.EM_ANALISE, "Proposta enviada para analise");
+            }
             BigDecimal firstPayment = simulation.simulate(p.getSystem(), p.getAmount(), p.getRate(), p.getTerm())
                     .installments().get(0).payment();
             return new PolicyContext(p.getCustomerId(), p.getMonthlyIncome(), p.getExistingCommitments(),
@@ -125,6 +128,9 @@ public class ProposalService {
     @Transactional
     public Proposal manualDecision(Long id, boolean approved, String reason) {
         Proposal p = get(id);
+        if (p.getStatus() != ProposalStatus.ANALISE_MANUAL) {
+            throw new BusinessRuleException("Decisao manual so se aplica a proposta em ANALISE_MANUAL");
+        }
         if (approved) {
             approve(p, "Analise manual: " + reason);
         } else {

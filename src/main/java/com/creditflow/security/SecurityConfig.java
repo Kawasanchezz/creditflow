@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.header.HeaderWriter;
 import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
@@ -37,8 +38,11 @@ public class SecurityConfig {
     private static final String CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
             + "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 
+    private static final String PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=()";
+    private static final long MAX_BODY_BYTES = 64 * 1024;
+
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, AuthFailureThrottle throttle) throws Exception {
         RequestMatcher noAmbientCredentials = (HttpServletRequest r) ->
                 r.getHeader(HttpHeaders.AUTHORIZATION) != null || r.getCookies() == null;
         RequestMatcher apiDocs = (HttpServletRequest r) ->
@@ -49,7 +53,10 @@ public class SecurityConfig {
         http.csrf(c -> c.ignoringRequestMatchers(noAmbientCredentials))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(b -> b.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .headers(h -> h.referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)).addHeaderWriter(csp))
+                .addFilterBefore(new RequestSizeLimitFilter(MAX_BODY_BYTES), BasicAuthenticationFilter.class)
+                .addFilterBefore(new AuthThrottleFilter(throttle), BasicAuthenticationFilter.class)
+                .headers(h -> h.referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)).addHeaderWriter(csp)
+                        .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", PERMISSIONS_POLICY)))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**", "/error", "/api/demo").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
