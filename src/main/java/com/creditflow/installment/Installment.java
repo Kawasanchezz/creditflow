@@ -61,7 +61,6 @@ public class Installment {
     }
 
     public Long getId() { return id; }
-    public Long getContractId() { return contractId; }
     public int getNumber() { return number; }
     public LocalDate getDueDate() { return dueDate; }
     public BigDecimal getPrincipal() { return principal; }
@@ -69,5 +68,4 @@ public class Installment {
     public BigDecimal getAmount() { return amount; }
     public InstallmentStatus getStatus() { return status; }
     public BigDecimal getPaidAmount() { return paidAmount; }
-    public Instant getPaidAt() { return paidAt; }
 }
