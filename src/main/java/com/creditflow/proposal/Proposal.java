@@ -86,5 +86,4 @@ public class Proposal {
     public BigDecimal getExistingCommitments() { return existingCommitments; }
     public int getRelationshipMonths() { return relationshipMonths; }
     public LocalDate getValidUntil() { return validUntil; }
-    public long getVersion() { return version; }
 }
