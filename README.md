@@ -2,7 +2,7 @@
 
 Simula empréstimos (Price e SAC), analisa o risco por uma cadeia de regras, aprova ou recusa e, se aprovado, contrata de forma idempotente gerando o cronograma de parcelas.
 
-Stack: Java 21, Spring Boot 3.3, PostgreSQL + Flyway, `BigDecimal`/`MathContext`, Resilience4j, JUnit 5, WireMock, JaCoCo, Docker, GitHub Actions.
+Stack: Java 21, Spring Boot 4, PostgreSQL + Flyway, `BigDecimal`/`MathContext`, Resilience4j, JUnit, WireMock, JaCoCo, Docker, GitHub Actions.
 
 ## Demonstração
 
