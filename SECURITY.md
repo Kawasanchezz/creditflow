@@ -19,12 +19,15 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting 
 - Container runs as a non-root user; base images are pinned by digest; database and score mock are not published to the host; the API port is bound to `127.0.0.1`.
 - No credentials in the repository: the database password comes from `.env` (ignored by Git, template in `.env.example`).
 - GitHub Actions use read-only permissions and actions pinned to commit SHAs; Dependabot covers Maven, Docker and Actions.
-- Secret scanning before commit: `pip install pre-commit && pre-commit install` enables the gitleaks hook from `.pre-commit-config.yaml`.
+- Secret scanning before commit: `pre-commit install` (after installing pre-commit) enables the gitleaks hook from `.pre-commit-config.yaml`.
 
 ## Known limitations (not fixed on purpose)
 
-- **Basic accounts only.** HTTP Basic with in-memory accounts (`analyst`, `customer-N`) whose passwords come from environment variables; customers can only access their own proposals (404 otherwise). There is no account management, lockout, password rotation or TLS in this repository: run it behind TLS and replace it with an OIDC identity provider before any real use.
-- **No rate limiting or request throttling.** Input limits bound the cost of a single request, but not the request rate.
+- **Basic accounts only.** HTTP Basic with in-memory accounts (`analyst`, `customer-N`) whose passwords come from environment variables; customers can only access their own proposals (404 otherwise). There is no account management, password rotation or TLS in this repository: run it behind TLS and replace it with an OIDC identity provider before any real use.
+- **Basic abuse limits only.** Request bodies are capped at 64 KiB and repeated authentication failures from one address are throttled (20 per 5 minutes, then 429). The throttle is per instance and keyed on the socket address, so behind a proxy it needs the proxy's client IP handling; there are no per-user quotas, so request volume is not otherwise bounded.
+- **Self-declared policy inputs.** Income, commitments and relationship months in a proposal are supplied by the caller and drive the automatic decision; this is a simulation limitation, not a verified-data pipeline.
+- **Shared demo/compose passwords.** All `customer-N` accounts share one password from the environment, and `Idempotency-Key` is a global namespace (ownership is checked before a stored contract is returned).
+- **Static demo** (`vercel.json`, `assets/demo.js`): when no backend answers, the browser simulates the API locally (data in `localStorage`, public demo credentials, no server-side security). It is a showcase, not the real service.
 - **Demo mode** (`docker-compose.demo.yml`, off by default): `GET /api/demo` publishes public sample credentials so the login screen can offer one-click sign-in, and sample data is seeded. It exists only when `creditflow.demo.enabled=true`, logs a warning at startup, binds to 127.0.0.1 and must never be enabled outside a local evaluation machine.
 - Outcome records (contestation, chargeback, default, settlement) are append-only and can only be created by analysts; customers can read the outcomes of their own proposals only. The quality report is analyst-only.
 - Dependencies and the container image were scanned with Trivy (all severities) and reported no known vulnerabilities at the time of the last scan; new CVEs appear over time, so keep Dependabot enabled and rescan before releases.
