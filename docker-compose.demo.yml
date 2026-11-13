@@ -17,7 +17,7 @@ services:
       retries: 10
 
   score-mock:
-    image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
+    image: wiremock/wiremock:3.13.2-3@sha256:0d4ecb3e4dc8213fd7a4d37d6a78f6e6b553a6d2e15bd51b0999781282ac61b3
     volumes:
       - ./wiremock:/home/wiremock:ro
 
