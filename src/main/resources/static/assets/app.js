@@ -116,9 +116,10 @@ function demoCard() {
 
 function loginView() {
   const err = h('p', { class: 'note', role: 'alert' });
-  const user = h('input', { id: 'user', autocomplete: 'username', required: true });
-  const pass = h('input', { id: 'pass', type: 'password', autocomplete: 'current-password', required: true });
+  const user = h('input', { id: 'user', autocomplete: 'username', placeholder: 'ex: customer-1', required: true });
+  const pass = h('input', { id: 'pass', type: 'password', autocomplete: 'current-password', placeholder: 'Informe a sua senha', required: true });
   const form = h('form', {
+    class: 'signform',
     onsubmit: async ev => {
       ev.preventDefault();
       err.textContent = '';
@@ -128,13 +129,34 @@ function loginView() {
   h('div', { class: 'field' }, h('label', { for: 'user', text: 'Usuário' }), user),
   h('div', { class: 'field' }, h('label', { for: 'pass', text: 'Senha' }), pass),
   err,
-  h('button', { class: 'btn primary', type: 'submit', text: 'Entrar' }));
-  return h('main', { class: 'login' },
-    logoSvg(),
-    h('h1', { text: 'CreditFlow' }),
-    h('p', { class: 'label', text: 'Simulador e esteira de crédito. Projeto acadêmico de demonstração.' }),
-    demoCard(),
-    form);
+  h('button', { class: 'btn primary block', type: 'submit' }, icon('go'), ' Entrar'));
+
+  const steps = [['1', 'Entre com seu usuário e senha.'], ['2', 'Simule e compare Price e SAC.'], ['3', 'Crie e acompanhe suas propostas.']];
+  const cards = steps.map(([n, t], i) => h('div', { class: 'step3' + (i === 1 ? ' hi' : '') }, h('span', { class: 'num', text: n }), h('p', { text: t })));
+  const waves = s('svg', { class: 'waves', viewBox: '0 0 600 700', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': 'true' },
+    s('path', { d: 'M-20 120C120 40 220 200 360 130S560 60 640 160', fill: 'none' }),
+    s('path', { d: 'M-20 220C100 150 260 320 380 240S560 180 640 280', fill: 'none' }),
+    s('path', { d: 'M-20 330C140 250 240 420 400 340S540 300 640 400', fill: 'none' }));
+  const splash = h('section', { class: 'splash' }, waves,
+    h('div', { class: 'brand light' }, logoSvg(), h('span', { text: 'CreditFlow' })),
+    h('div', { class: 'splash-copy' },
+      h('h2', { text: 'Simule seu crédito com clareza' }),
+      h('p', { text: 'seguindo apenas esses passos!' }),
+      h('div', { class: 'steps3' }, cards)));
+  let idx = 1;
+  const timer = setInterval(() => {
+    if (!splash.isConnected) { clearInterval(timer); return; }
+    idx = (idx + 1) % cards.length;
+    cards.forEach((el, k) => el.classList.toggle('hi', k === idx));
+  }, 2600);
+
+  return h('main', { class: 'split' }, splash,
+    h('section', { class: 'signin' }, h('div', { class: 'signin-box' },
+      h('h1', { text: 'Entre no CreditFlow!' }),
+      h('p', { class: 'sub', text: 'Insira seu usuário e senha para entrar.' }),
+      form,
+      demoCard(),
+      h('p', { class: 'fine', text: 'Projeto acadêmico de demonstração.' }))));
 }
 
 function logoSvg() {
@@ -151,6 +173,7 @@ const ICONS = {
   bell: ['M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7', 'M10 20a2 2 0 0 0 4 0'],
   out: ['M9 4H5v16h4', 'M16 8l4 4-4 4', 'M20 12H9'],
   doc: ['M6 3h9l4 4v14H6z', 'M14 3v5h5'],
+  go: ['M5 12h14', 'M13 6l6 6-6 6'],
   sliders: ['M4 7h9', 'M17 7h3', 'M4 17h3', 'M11 17h9', 'M13 5v4', 'M7 15v4'],
   clock: ['M12 7v5l3 2', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
   percent: ['M19 5L5 19', 'M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
