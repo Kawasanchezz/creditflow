@@ -60,9 +60,9 @@ public final class ApiDtos {
         }
     }
 
-    public record PolicyResultResponse(String rule, Outcome outcome, String detail) {
+    public record PolicyResultResponse(String rule, Outcome outcome, String detail, String policyVersion) {
         public static PolicyResultResponse from(CreditPolicyResult r) {
-            return new PolicyResultResponse(r.getRuleCode(), r.getOutcome(), r.getDetail());
+            return new PolicyResultResponse(r.getRuleCode(), r.getOutcome(), r.getDetail(), r.getPolicyVersion());
         }
     }
 

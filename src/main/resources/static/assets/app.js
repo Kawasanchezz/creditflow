@@ -146,6 +146,7 @@ function logoSvg() {
 /* ---------- casca ---------- */
 function shell(content) {
   const tabs = [['sim', 'Simulador'], ['prop', 'Propostas']];
+  if (state.me.role === 'ANALYST') tabs.push(['quality', 'Qualidade']);
   return h('div', { class: 'shell' },
     state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
     h('header', { class: 'top' },
@@ -279,7 +280,9 @@ async function loadDetail(id) {
   if (p.status === 'CONTRATADA' || p.status === 'ATIVA') {
     try { contract = await api('/api/proposals/' + id + '/contract'); } catch (e) { contract = null; }
   }
-  state.detail = { p, history, rules, contract };
+  let outcomes = [];
+  try { outcomes = await api('/api/proposals/' + id + '/outcomes'); } catch (e) { outcomes = []; }
+  state.detail = { p, history, rules, contract, outcomes };
 }
 
 async function act(fn, okMsg) {
@@ -291,7 +294,7 @@ const FLOW = ['SIMULADA', 'EM_ANALISE', 'APROVADA', 'CONTRATADA', 'ATIVA'];
 function detailView() {
   const d = state.detail;
   if (!d) return h('section', { class: 'card col-8' }, h('div', { class: 'empty', text: 'Selecione ou crie uma proposta.' }));
-  const { p, history, rules, contract } = d;
+  const { p, history, rules, contract, outcomes } = d;
   const visited = new Set(history.map(x => x.to));
   const steps = h('div', { class: 'steps' }, FLOW.map(st => h('span', {
     class: 'step' + (p.status === st ? ' now' : visited.has(st) ? ' done' : ''), text: st.replace('_', ' ')
@@ -335,7 +338,8 @@ function detailView() {
     h('div', { class: 'mid', text: money(p.amount) }),
     h('p', { class: 'label', text: p.system + ' · ' + p.term + 'x · ' + pct(p.monthlyRate) + ' a.m. · cliente ' + p.customerId }),
     steps, actions);
-  const rulesCard = h('section', { class: 'card' }, h('h2', { text: 'Política de crédito' }),
+  const rulesCard = h('section', { class: 'card' },
+    h('h2', null, 'Política de crédito', rules.length > 0 && h('span', { class: 'status', title: 'Versão da política que produziu esta decisão', text: rules[0].policyVersion })),
     rules.length ? rules.map(r => h('div', { class: 'rule' }, badge(r.outcome), h('div', null, h('b', { text: r.rule }), h('small', { class: 'label', text: ' ' + r.detail }))))
       : h('div', { class: 'empty', text: 'Ainda não analisada.' }));
   const histCard = h('section', { class: 'card' }, h('h2', { text: 'Histórico' }),
@@ -344,7 +348,7 @@ function detailView() {
         h('small', { text: dateTimeBR(x.at) + (x.reason ? ' · ' + x.reason : '') }))))));
   const wrap = h('div', { class: 'col-8', role: 'region', 'aria-label': 'Detalhe da proposta' });
   wrap.style.display = 'grid'; wrap.style.gap = '18px'; wrap.style.alignContent = 'start';
-  wrap.append(head, rulesCard, histCard);
+  wrap.append(head, rulesCard, histCard, outcomesCard(p, outcomes));
   if (contract) {
     const prepay = i => h('button', {
       class: 'btn small', text: 'Antecipar',
@@ -377,6 +381,50 @@ function propView() {
   return h('div', { class: 'grid' }, list, detailView());
 }
 
+/* ---------- desfechos e qualidade da politica ---------- */
+const SIGNALS = {
+  POSSIVEL_FALSO_POSITIVO: ['Possível falso positivo', 'bad', 'Aprovou, mas o cliente deixou de pagar ou houve chargeback'],
+  POSSIVEL_FALSO_NEGATIVO: ['Possível falso negativo', 'warn', 'Recusou, mas o cliente contestou a decisão'],
+  DECISAO_CONFIRMADA: ['Decisão confirmada', 'good', 'Aprovou e o cliente pagou em dia'],
+  INCONCLUSIVO: ['Inconclusivo', '', 'Sozinho, este desfecho não diz se a decisão estava certa']
+};
+const TYPES = { CONTESTACAO: 'Contestação', CHARGEBACK: 'Chargeback', INADIMPLENCIA: 'Inadimplência', QUITACAO: 'Quitação' };
+const signalBadge = sig => { const s = SIGNALS[sig] || SIGNALS.INCONCLUSIVO; return h('span', { class: 'status ' + s[1], title: s[2], text: s[0] }); };
+
+function outcomesCard(p, outcomes) {
+  const list = outcomes.length
+    ? h('ul', { class: 'timeline' }, outcomes.map(o => h('li', null, h('span', { class: 'tdot' }),
+      h('div', null, h('b', null, TYPES[o.type] + ' ', signalBadge(o.signal)),
+        h('small', { text: dateBR(o.occurredOn) + (o.detail ? ' · ' + o.detail : '') + ' · registrado por ' + o.recordedBy + ' · decisão original ' + o.decision + ' · política ' + o.policyVersion })))))
+    : h('div', { class: 'empty', text: 'Nenhum desfecho registrado ainda.' });
+  const card = h('section', { class: 'card' }, h('h2', { text: 'Desfechos' }),
+    h('p', { class: 'note', text: 'O que aconteceu depois da decisão: o sinal real para saber se a política acertou.' }), list);
+  if (state.me.role !== 'ANALYST') return card;
+  const type = h('select', { 'aria-label': 'Tipo de desfecho' }, Object.entries(TYPES).map(([k, v]) => h('option', { value: k, text: v })));
+  const date = h('input', { type: 'date', 'aria-label': 'Data do desfecho', value: new Date().toISOString().slice(0, 10) });
+  const detail = h('input', { placeholder: 'Detalhe (opcional)', 'aria-label': 'Detalhe', maxlength: 300 });
+  card.append(h('div', { class: 'outcome-form' }, type, date, detail,
+    h('button', {
+      class: 'btn small', text: 'Registrar desfecho',
+      onclick: () => act(() => api('/api/proposals/' + p.id + '/outcomes', { method: 'POST', body: { type: type.value, detail: detail.value.trim() || null, occurredOn: date.value } }), 'Desfecho registrado.')
+    })));
+  return card;
+}
+
+async function qualityView() {
+  let rows = [];
+  try { rows = await api('/api/outcomes/summary'); } catch (e) { toast(e.message, true); }
+  const body = rows.length ? rows.map(r => h('tr', null,
+    h('td', { text: r.policyVersion }), h('td', { text: r.decision }), h('td', { text: TYPES[r.type] }),
+    h('td', null, signalBadge(r.signal)), h('td', { text: r.count })))
+    : [h('tr', null, h('td', { colspan: 5, text: 'Ainda não há desfechos registrados.' }))];
+  return h('section', { class: 'card' }, h('h2', { text: 'Qualidade da política' }),
+    h('p', { class: 'note', text: 'Cruza a versão da política, a decisão original e o desfecho posterior. Falso positivo: aprovou quem não pagou. Falso negativo: recusou e o cliente contestou. A contestação é um sinal barato: não exige uma equipe de revisão manual.' }),
+    h('div', { class: 'table-wrap' }, h('table', null,
+      h('thead', null, h('tr', null, ['Política', 'Decisão', 'Desfecho', 'Sinal', 'Qtde'].map(t => h('th', { text: t })))),
+      h('tbody', null, body))));
+}
+
 /* ---------- raiz ---------- */
 async function render() {
   const app = document.getElementById('app');
@@ -384,6 +432,8 @@ async function render() {
   if (state.tab === 'sim') {
     app.replaceChildren(shell(simView()));
     if (!state.sim) simulate();
+  } else if (state.tab === 'quality' && state.me.role === 'ANALYST') {
+    app.replaceChildren(shell(await qualityView()));
   } else {
     try { await loadProposals(); } catch (e) { toast(e.message, true); }
     app.replaceChildren(shell(propView()));

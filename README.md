@@ -135,6 +135,33 @@ stateDiagram-v2
 
 `MIN_INCOME → INCOME_COMMITMENT → RELATIONSHIP → SCORE`. Cada elo (`PolicyHandler`) passa adiante (`PASS`), recusa (`REJECT`) ou envia para análise manual (`MANUAL`); se todos passam, aprova. Cada avaliação e seu motivo ficam em `credit_policy_result`. A chamada externa (score) é a última, e a cadeia para na primeira recusa, então regras baratas evitam a chamada. Limites configuráveis em `creditflow.policy.*` (em produção, via Parameter Store).
 
+### Versão da política em cada decisão
+
+Cada resultado de regra grava a **versão da política** que o produziu (`pol-xxxxxxxx`). A versão é calculada sozinha: é o hash das regras, da ordem delas e dos limites. Se alguém mudar um limite (renda mínima, comprometimento, tempo de relacionamento ou score), a versão muda, sem depender de alguém lembrar de atualizá-la. Assim dá para saber exatamente qual política aprovou ou recusou cada proposta, mesmo depois de ela mudar. Decisões anteriores a esse recurso aparecem como `legacy`.
+
+## Desfechos e qualidade da política
+
+A decisão sozinha não diz se estava certa. O sistema registra também o **desfecho posterior** de uma proposta, ligado à decisão original e à versão da política:
+
+| Desfecho | Quando se aplica |
+| --- | --- |
+| `CONTESTACAO` | Proposta já decidida (aprovada, recusada, contratada, ativa ou expirada) |
+| `CHARGEBACK`, `INADIMPLENCIA`, `QUITACAO` | Só proposta `ATIVA`, com contrato |
+
+Só o analista registra (`POST /api/proposals/{id}/outcomes`); o cliente vê os desfechos das próprias propostas (`GET`). Os registros são imutáveis (só inserção). Cada desfecho é classificado:
+
+- **Possível falso positivo:** aprovou, mas houve inadimplência ou chargeback.
+- **Possível falso negativo:** recusou, mas o cliente contestou a decisão.
+- **Decisão confirmada:** aprovou e o cliente quitou normalmente.
+
+`GET /api/outcomes/summary` (só analista) cruza versão da política × decisão × desfecho, e a aba **Qualidade** da interface mostra o mesmo. A contestação do cliente é um sinal barato: mede onde a política errou sem precisar de uma equipe grande de revisão manual. A ideia veio de um feedback recebido sobre o projeto.
+
+![Desfechos de uma proposta](docs/img/ui-desfechos.png)
+
+![Qualidade da política](docs/img/ui-qualidade.png)
+
+Limites assumidos: o sinal é indicativo (uma contestação pode ser infundada), os desfechos são lançados manualmente (não há integração com um adquirente) e o relatório é uma contagem, não uma métrica estatística de acurácia.
+
 ## Serviço de score instável
 
 `HttpScoreClient`: timeouts de conexão/leitura, `@Retry` do Resilience4j (3 tentativas, 200 ms) e fallback que devolve vazio → `ScoreRule` retorna `MANUAL` → proposta vai para `ANALISE_MANUAL`. A chamada fica fora de transação de banco para não segurar conexão durante timeouts.
