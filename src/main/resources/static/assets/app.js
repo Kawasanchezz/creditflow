@@ -150,7 +150,7 @@ function loginView() {
     cards.forEach((el, k) => el.classList.toggle('hi', k === idx));
   }, 2600);
 
-  return h('main', { class: 'split' }, splash,
+  return h('main', { class: 'loginsplit' }, splash,
     h('section', { class: 'signin' }, h('div', { class: 'signin-box' },
       h('h1', { text: 'Entre no CreditFlow!' }),
       h('p', { class: 'sub', text: 'Insira seu usuário e senha para entrar.' }),
