@@ -1,5 +1,6 @@
 package com.creditflow.simulation;
 
+import com.creditflow.common.InvalidInputException;
 import com.creditflow.common.Money;
 import java.math.BigDecimal;
 import java.util.EnumMap;
@@ -18,7 +19,7 @@ public class SimulationService {
     public SimulationResult simulate(AmortizationSystem system, BigDecimal amount, BigDecimal monthlyRate, int term) {
         AmortizationStrategy strategy = strategies.get(system);
         if (strategy == null) {
-            throw new IllegalArgumentException("unsupported system: " + system);
+            throw new InvalidInputException("unsupported system: " + system);
         }
         List<InstallmentLine> lines = strategy.schedule(amount, monthlyRate, term);
         BigDecimal totalPaid = lines.stream().map(InstallmentLine::payment).reduce(Money.zero(), BigDecimal::add);

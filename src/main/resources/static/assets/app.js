@@ -3,7 +3,7 @@
 const state = {
   auth: null, me: null, tab: 'sim',
   simInput: { system: 'PRICE', amount: '10000', rate: '1.99', term: '12' },
-  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false
+  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false, session: 0
 };
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -70,6 +70,7 @@ function toast(msg, err) {
 }
 
 function logout() {
+  state.session++;
   state.auth = null; state.me = null; state.sim = null; state.proposals = [];
   state.detail = null; state.selectedId = null; state.keys = {};
   render();
@@ -273,6 +274,7 @@ async function loadProposals() {
 }
 
 async function loadDetail(id) {
+  const session = state.session;
   state.selectedId = id;
   const p = await api('/api/proposals/' + id);
   const [history, rules] = await Promise.all([api('/api/proposals/' + id + '/history'), api('/api/proposals/' + id + '/policy-results')]);
@@ -282,6 +284,7 @@ async function loadDetail(id) {
   }
   let outcomes = [];
   try { outcomes = await api('/api/proposals/' + id + '/outcomes'); } catch (e) { outcomes = []; }
+  if (session !== state.session) return;
   state.detail = { p, history, rules, contract, outcomes };
 }
 

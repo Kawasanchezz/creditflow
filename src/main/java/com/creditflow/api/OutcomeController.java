@@ -7,6 +7,7 @@ import com.creditflow.outcome.OutcomeType;
 import com.creditflow.security.AccessGuard;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.time.LocalDate;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class OutcomeController {
-    public record OutcomeRequest(@NotNull OutcomeType type, @Size(max = 400) String detail, @NotNull LocalDate occurredOn) {
+    public record OutcomeRequest(@NotNull OutcomeType type, @Size(max = 400) @Pattern(regexp = "[^\\x00]*", message = "caracteres de controle nao permitidos") String detail, @NotNull LocalDate occurredOn) {
     }
 
     private final OutcomeService outcomes;

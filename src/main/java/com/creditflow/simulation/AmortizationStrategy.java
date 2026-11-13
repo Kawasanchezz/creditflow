@@ -1,5 +1,6 @@
 package com.creditflow.simulation;
 
+import com.creditflow.common.InvalidInputException;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -20,19 +21,19 @@ public interface AmortizationStrategy {
 
     static void validate(BigDecimal principal, BigDecimal monthlyRate, int term) {
         if (principal == null || principal.signum() <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
+            throw new InvalidInputException("amount must be positive");
         }
         if (monthlyRate == null || monthlyRate.signum() < 0) {
-            throw new IllegalArgumentException("rate must be >= 0");
+            throw new InvalidInputException("rate must be >= 0");
         }
         if (term <= 0) {
-            throw new IllegalArgumentException("term must be positive");
+            throw new InvalidInputException("term must be positive");
         }
         if (term > MAX_TERM) {
-            throw new IllegalArgumentException("term must be at most " + MAX_TERM);
+            throw new InvalidInputException("term must be at most " + MAX_TERM);
         }
         if (principal.compareTo(BigDecimal.valueOf(term, 2)) < 0) {
-            throw new IllegalArgumentException("amount too small: at least 0.01 per installment");
+            throw new InvalidInputException("amount too small: at least 0.01 per installment");
         }
     }
 }

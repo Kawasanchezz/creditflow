@@ -36,7 +36,7 @@ public class InstallmentService {
     public Installment prepay(Long contractId, int number) {
         Contract contract = contracts.findById(contractId)
                 .orElseThrow(() -> new NotFoundException("Contrato nao encontrado"));
-        Installment inst = installments.findByContractIdAndNumber(contractId, number)
+        Installment inst = installments.findForUpdate(contractId, number)
                 .orElseThrow(() -> new NotFoundException("Parcela nao encontrada"));
         if (inst.getStatus() != InstallmentStatus.PENDENTE) {
             throw new BusinessRuleException("Parcela ja quitada");
