@@ -138,28 +138,47 @@ function loginView() {
 
 function logoSvg() {
   return s('svg', { class: 'logo', viewBox: '0 0 64 64', 'aria-hidden': 'true' },
-    s('circle', { cx: 32, cy: 32, r: 30, fill: '#174a1c' }),
-    s('rect', { x: 16, y: 16, width: 10, height: 30, rx: 2, fill: '#b7ee76' }),
-    s('rect', { x: 29, y: 25, width: 10, height: 21, rx: 2, fill: '#b7ee76' }),
-    s('rect', { x: 42, y: 34, width: 10, height: 12, rx: 2, fill: '#b7ee76' }));
+    s('circle', { cx: 32, cy: 32, r: 30, fill: '#2f5d46' }),
+    s('rect', { x: 16, y: 16, width: 10, height: 30, rx: 2, fill: '#cfe3d6' }),
+    s('rect', { x: 29, y: 25, width: 10, height: 21, rx: 2, fill: '#cfe3d6' }),
+    s('rect', { x: 42, y: 34, width: 10, height: 12, rx: 2, fill: '#cfe3d6' }));
 }
 
 /* ---------- casca ---------- */
+const ICONS = {
+  sim: ['M4 4h7v7H4z', 'M13 4h7v7h-7z', 'M4 13h7v7H4z', 'M13 13h7v7h-7z'],
+  prop: ['M6 3h9l4 4v14H6z', 'M14 3v5h5', 'M9 13h7', 'M9 17h7'],
+  quality: ['M5 20V10', 'M12 20V4', 'M19 20v-7'],
+  out: ['M9 4H5v16h4', 'M16 8l4 4-4 4', 'M20 12H9']
+};
+function icon(name) {
+  return s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8,
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+  ...ICONS[name].map(d => s('path', { d })));
+}
+
 function shell(content) {
   const tabs = [['sim', 'Simulador'], ['prop', 'Propostas']];
   if (state.me.role === 'ANALYST') tabs.push(['quality', 'Qualidade']);
+  const subtitle = { sim: 'Simule um financiamento e compare Price e SAC.', prop: 'Acompanhe propostas, contratos e parcelas.',
+    quality: 'Veja como a política de crédito se comporta nos desfechos.' }[state.tab];
   return h('div', { class: 'shell' },
-    state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
-    h('header', { class: 'top' },
-      h('div', { class: 'hello' }, h('span', { class: 'avatar', text: state.me.username[0] }), 'Olá, ' + state.me.username),
-      h('nav', { class: 'tabs' }, tabs.map(([id, label]) => h('button', {
-        class: 'tab' + (state.tab === id ? ' active' : ''), text: label,
+    h('nav', { class: 'side', 'aria-label': 'Navegação' },
+      tabs.map(([id, label]) => h('button', {
+        class: 'nav-btn' + (state.tab === id ? ' active' : ''), type: 'button', title: label, 'aria-label': label,
+        'aria-current': state.tab === id ? 'page' : false,
         onclick: () => { state.tab = id; render(); }
-      }))),
-      h('div', { class: 'who' },
-        h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }),
-        h('button', { class: 'btn small', text: 'Sair', onclick: logout }))),
-    content);
+      }, icon(id))),
+      h('span', { class: 'spacer' }),
+      h('button', { class: 'nav-btn', type: 'button', title: 'Sair', 'aria-label': 'Sair', onclick: logout }, icon('out')),
+      h('span', { class: 'avatar', 'aria-hidden': 'true', text: state.me.username[0] })),
+    h('div', { class: 'main' },
+      state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
+      h('header', { class: 'top' },
+        h('div', null, h('h1', { class: 'hello-title', text: 'Olá, ' + state.me.username + '!' }), h('p', { class: 'hello-sub', text: subtitle })),
+        h('div', { class: 'who' },
+          h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }))),
+      content));
 }
 
 /* ---------- simulador ---------- */
@@ -174,14 +193,59 @@ async function simulate() {
   } catch (e) { toast(e.message, true); }
 }
 
-function donut(sim) {
-  const C = 2 * Math.PI * 85, f = Number(sim.amount) / Number(sim.totalPaid);
-  return h('div', { class: 'donut-wrap' },
-    s('svg', { width: 230, height: 230, viewBox: '0 0 230 230', role: 'img', 'aria-label': 'Composição do total pago' },
-      s('circle', { cx: 115, cy: 115, r: 85, fill: 'none', stroke: '#b7ee76', 'stroke-width': 22 }),
-      s('circle', { cx: 115, cy: 115, r: 85, fill: 'none', stroke: '#174a1c', 'stroke-width': 22,
-        'stroke-dasharray': `${f * C} ${C}`, transform: 'rotate(-90 115 115)' })),
-    h('div', { class: 'donut-center' }, h('span', { class: 'label', text: 'Total pago' }), h('b', { text: money(sim.totalPaid) })));
+function gauge(sim) {
+  const share = Math.min(1, Number(sim.amount) / Number(sim.totalPaid)), L = Math.PI * 90;
+  const arc = 'M 25 115 A 90 90 0 0 1 205 115';
+  return h('div', { class: 'gauge-wrap' },
+    s('svg', { width: 230, height: 130, viewBox: '0 0 230 130', role: 'img', 'aria-label': 'Composição do total pago' },
+      s('path', { d: arc, fill: 'none', stroke: '#e4ece7', 'stroke-width': 24, 'stroke-linecap': 'round' }),
+      s('path', { d: arc, fill: 'none', stroke: '#5f8a70', 'stroke-width': 24, 'stroke-linecap': 'round',
+        'stroke-dasharray': (share * L) + ' ' + L })),
+    h('div', { class: 'gauge-center' }, h('b', { text: Math.round(share * 100) + '%' }), h('span', { class: 'label', text: 'é principal' })));
+}
+
+function spark(values, bars) {
+  const w = 84, hgt = 44, max = Math.max(...values, 1);
+  if (bars) {
+    return s('svg', { viewBox: '0 0 ' + w + ' ' + hgt, 'aria-hidden': 'true' },
+      ...values.map((v, i) => {
+        const bh = Math.max(4, (v / max) * hgt);
+        return s('rect', { x: i * 14 + 2, y: hgt - bh, width: 8, height: bh, rx: 4, fill: '#4f7a62' });
+      }));
+  }
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, hgt - 4 - (v / max) * (hgt - 8)]);
+  return s('svg', { viewBox: '0 0 ' + w + ' ' + hgt, 'aria-hidden': 'true' },
+    s('path', { d: 'M' + pts.map(p => p.map(n => n.toFixed(1)).join(' ')).join(' L'), fill: 'none', stroke: 'currentColor',
+      'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+}
+
+function kpis(sim) {
+  const rows = sim ? sim.installments : [];
+  const every = Math.max(1, Math.ceil(rows.length / 6));
+  const sample = key => {
+    const v = rows.filter((_, i) => i % every === 0).slice(0, 6).map(l => Number(l[key]) || 0);
+    return v.length > 1 ? v : [1, 1, 1, 1];
+  };
+  const tile = (label, value, chart, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') },
+    h('div', null, h('span', { class: 'label', text: label }), h('b', { text: value })), chart);
+  return h('div', { class: 'kpis' },
+    tile('Primeira parcela', sim ? money(rows[0].payment) : '—', spark(sample('payment'), true)),
+    tile('Total pago', sim ? money(sim.totalPaid) : '—', spark(sample('balance'), false)),
+    tile('Juros totais', sim ? money(sim.totalInterest) : '—', spark(sample('interest'), true)),
+    tile('CET anual', sim ? pct(sim.cetAnnual) : '—', spark(sample('principal'), false), 'grad'));
+}
+
+function balanceChart(sim) {
+  const rows = sim.installments, W = 560, H = 150, max = Number(sim.amount);
+  const y = v => H - (Number(v) / max) * (H - 20) - 10;
+  const pts = [[0, y(sim.amount)], ...rows.map((l, i) => [((i + 1) / rows.length) * W, y(l.balance)])];
+  const line = pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+  return s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', role: 'img', 'aria-label': 'Evolução do saldo devedor' },
+    s('defs', null, s('linearGradient', { id: 'bal-fill', x1: 0, y1: 0, x2: 0, y2: 1 },
+      s('stop', { offset: '0%', 'stop-color': '#5f8a70', 'stop-opacity': 0.28 }),
+      s('stop', { offset: '100%', 'stop-color': '#5f8a70', 'stop-opacity': 0 }))),
+    s('path', { d: 'M' + line + ' L' + W + ' ' + H + ' L0 ' + H + ' Z', fill: 'url(#bal-fill)' }),
+    s('path', { d: 'M' + line, fill: 'none', stroke: '#4f7a62', 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke', 'stroke-linejoin': 'round' }));
 }
 
 function simView() {
@@ -198,12 +262,12 @@ function simView() {
       h('button', { class: 'btn primary', text: 'Simular', onclick: simulate }),
       h('button', { class: 'btn', text: 'Criar proposta', disabled: !sim, onclick: proposalDialog })));
   const first = sim && sim.installments[0];
-  const left = h('section', { class: 'card col-8' },
+  const left = h('section', { class: 'card col-5' },
     h('h2', { text: 'Simulação' }),
     h('span', { class: 'label', text: sim ? 'Primeira parcela (' + sim.system + ')' : 'Preencha os dados e simule' }),
     h('div', { class: 'big', text: sim ? money(first.payment) : 'R$ 0,00' }),
     form);
-  const right = h('section', { class: 'card lime col-4' },
+  const right = h('section', { class: 'card lime col-7' },
     s('svg', { class: 'sparkle', viewBox: '0 0 100 100', 'aria-hidden': 'true' },
       s('path', { d: 'M50 0C55 35 65 45 100 50C65 55 55 65 50 100C45 65 35 55 0 50C35 45 45 35 50 0Z', fill: '#fff' })),
     h('h2', { text: 'Juros totais' }),
@@ -215,18 +279,19 @@ function simView() {
     h('p', { class: 'note', text: 'CET aproximado: TIR do fluxo, sem tarifas nem IOF.' }));
   const parts = [left, right];
   if (sim) {
-    parts.push(h('section', { class: 'card col-4' }, h('h2', { text: 'Composição' }), donut(sim),
+    parts.push(h('section', { class: 'card col-4' }, h('h2', { text: 'Composição' }), gauge(sim),
       h('div', { class: 'legend' },
         h('span', null, h('i', { class: 'dot principal' }), 'Principal'),
         h('span', null, h('i', { class: 'dot juros' }), 'Juros'))));
-    parts.push(h('section', { class: 'card col-8' }, h('h2', { text: 'Cronograma' }),
+    parts.push(h('section', { class: 'card col-8' }, h('h2', { text: 'Saldo devedor' }), balanceChart(sim)));
+    parts.push(h('section', { class: 'card col-12' }, h('h2', { text: 'Cronograma' }),
       h('div', { class: 'table-wrap' }, h('table', null,
         h('thead', null, h('tr', null, ['#', 'Parcela', 'Amortização', 'Juros', 'Saldo'].map(t => h('th', { text: t })))),
         h('tbody', null, sim.installments.map(l => h('tr', null,
           h('td', { text: l.number }), h('td', { text: money(l.payment) }), h('td', { text: money(l.principal) }),
           h('td', { text: money(l.interest) }), h('td', { text: money(l.balance) }))))))));
   }
-  return h('div', { class: 'grid' }, parts);
+  return h('div', null, kpis(sim), h('div', { class: 'grid' }, parts));
 }
 
 function proposalDialog() {
