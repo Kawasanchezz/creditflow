@@ -3,7 +3,7 @@
 const state = {
   auth: null, me: null, tab: 'sim',
   simInput: { system: 'PRICE', amount: '10000', rate: '1.99', term: '12' },
-  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false, session: 0, showAll: false
+  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false, session: 0, showAll: false, pop: null, seen: false, cmp: null, cmpBusy: false
 };
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -73,6 +73,7 @@ function logout() {
   state.session++;
   state.auth = null; state.me = null; state.sim = null; state.proposals = [];
   state.detail = null; state.selectedId = null; state.keys = {};
+  state.pop = null; state.seen = false; state.cmp = null; state.showAll = false;
   render();
 }
 
@@ -153,12 +154,66 @@ const ICONS = {
   sliders: ['M4 7h9', 'M17 7h3', 'M4 17h3', 'M11 17h9', 'M13 5v4', 'M7 15v4'],
   clock: ['M12 7v5l3 2', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
   percent: ['M19 5L5 19', 'M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  user: ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M4 21a8 8 0 0 1 16 0'],
+  download: ['M12 4v11', 'M7 11l5 5 5-5', 'M5 20h14'],
+  copy: ['M9 9h10v11H9z', 'M5 15V4h10'],
+  list: ['M8 6h12', 'M8 12h12', 'M8 18h12', 'M4 6h.01', 'M4 12h.01', 'M4 18h.01'],
   wallet: ['M4 7h15a1 1 0 0 1 1 1v11H5a1 1 0 0 1-1-1z', 'M4 7l12-3v3', 'M16 13h4']
 };
 function icon(name) {
   return s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
   ...ICONS[name].map(d => s('path', { d })));
+}
+
+function togglePop(name) {
+  state.pop = state.pop === name ? null : name;
+  if (name === 'bell' && state.pop === 'bell') {
+    state.seen = true;
+    api('/api/proposals').then(list => { state.proposals = list; if (state.pop === 'bell') render(); }).catch(() => {});
+  }
+  render();
+}
+
+function goTo(tab, id) {
+  state.pop = null; state.tab = tab;
+  if (id !== undefined) state.selectedId = id;
+  render();
+}
+
+function notifPanel() {
+  const list = state.proposals.slice(0, 6);
+  return h('div', { class: 'pop', role: 'dialog', 'aria-label': 'Notificações' },
+    h('div', { class: 'pophead' }, h('b', { text: 'Notificações' }), h('small', { text: list.length + ' proposta(s)' })),
+    list.length ? list.map(p => h('button', { class: 'popitem', type: 'button', onclick: () => goTo('prop', p.id) },
+      h('span', { class: 'badge', text: '#' + p.id }),
+      h('span', { class: 'grow' }, h('b', { text: money(p.amount) }), h('small', { text: p.system + ' · ' + p.term + 'x' })),
+      badge(p.status)))
+      : h('p', { class: 'empty', text: 'Nenhuma proposta ainda. Faça uma simulação e crie a primeira.' }),
+    h('button', { class: 'popfoot', type: 'button', text: 'Ver todas as propostas', onclick: () => goTo('prop') }));
+}
+
+function userPanel() {
+  return h('div', { class: 'pop narrow', role: 'menu', 'aria-label': 'Conta' },
+    h('div', { class: 'pophead' }, h('b', { text: state.me.username }), h('small', { text: displayName() })),
+    h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('sim') }, icon('sliders'), h('span', { class: 'grow', text: 'Nova simulação' })),
+    h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('prop') }, icon('list'), h('span', { class: 'grow', text: 'Minhas propostas' })),
+    state.me.role === 'ANALYST' && h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('quality') }, icon('doc'), h('span', { class: 'grow', text: 'Qualidade da política' })),
+    h('button', { class: 'popfoot danger', type: 'button', role: 'menuitem', text: 'Sair', onclick: logout }));
+}
+
+function whoBlock() {
+  return h('div', { class: 'who' },
+    h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }),
+    h('div', { class: 'popwrap' },
+      h('button', { class: 'round', type: 'button', title: 'Notificações', 'aria-label': 'Notificações', 'aria-expanded': state.pop === 'bell' ? 'true' : 'false',
+        onclick: () => togglePop('bell') }, icon('bell'), !state.seen && h('i', { class: 'ping' })),
+      state.pop === 'bell' && notifPanel()),
+    h('button', { class: 'round', type: 'button', title: 'Sair', 'aria-label': 'Sair', onclick: logout }, icon('out')),
+    h('div', { class: 'popwrap' },
+      h('button', { class: 'avatar', type: 'button', title: 'Minha conta', 'aria-label': 'Minha conta', 'aria-expanded': state.pop === 'user' ? 'true' : 'false',
+        onclick: () => togglePop('user'), text: state.me.username[0] }),
+      state.pop === 'user' && userPanel()));
 }
 
 function displayName() {
@@ -183,11 +238,7 @@ function shell(content) {
         'aria-current': state.tab === id ? 'page' : false,
         onclick: () => { state.tab = id; render(); }
       }))),
-      h('div', { class: 'who' },
-        h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }),
-        h('button', { class: 'round', type: 'button', title: 'Notificações', 'aria-label': 'Notificações' }, icon('bell'), h('i', { class: 'ping' })),
-        h('button', { class: 'round', type: 'button', title: 'Sair', 'aria-label': 'Sair', onclick: logout }, icon('out')),
-        h('span', { class: 'avatar', 'aria-hidden': 'true', text: state.me.username[0] }))),
+      whoBlock()),
     h('main', { class: 'main' },
       state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
       h('div', { class: 'welcome' },
@@ -266,6 +317,100 @@ function barChart(sim) {
   return box;
 }
 
+const KEY = s => [s.amount, s.monthlyRate, s.term].join('|');
+
+function ensureCompare(sim) {
+  if ((state.cmp && state.cmp.key === KEY(sim)) || state.cmpBusy) return;
+  state.cmpBusy = true;
+  const key = KEY(sim), session = state.session;
+  const body = sys => ({ system: sys, amount: Number(sim.amount), monthlyRate: Number(sim.monthlyRate), term: Number(sim.term) });
+  Promise.all(['PRICE', 'SAC'].map(sys => api('/api/simulations', { method: 'POST', body: body(sys) })))
+    .then(([price, sac]) => { if (session === state.session) state.cmp = { key, price, sac }; })
+    .catch(() => { if (session === state.session) state.cmp = { key, failed: true }; })
+    .finally(() => { state.cmpBusy = false; if (session === state.session && state.tab === 'sim') render(); });
+}
+
+function compareCard(sim) {
+  const cmp = state.cmp && state.cmp.key === KEY(sim) ? state.cmp : null;
+  const head = h('div', { class: 'cardhead' }, h('h2', { text: 'Comparar Price × SAC' }));
+  if (!cmp) return h('section', { class: 'card col-7' }, head, h('p', { class: 'empty', text: 'Calculando a comparação…' }));
+  if (cmp.failed) return h('section', { class: 'card col-7' }, head, h('p', { class: 'empty', text: 'Não foi possível comparar agora.' }));
+  const { price, sac } = cmp;
+  const maxInterest = Math.max(Number(price.totalInterest), Number(sac.totalInterest), 1);
+  const saving = Number(price.totalInterest) - Number(sac.totalInterest);
+  const col = (sim2, label) => {
+    const rows = sim2.installments;
+    const bar = h('div', { class: 'cmpbar' }, h('i', null));
+    bar.firstChild.style.width = (Number(sim2.totalInterest) / maxInterest * 100) + '%';
+    return h('div', { class: 'cmpcol' + (state.simInput.system === label ? ' current' : '') },
+      h('b', { text: label }),
+      h('dl', null,
+        h('dt', { text: 'Primeira parcela' }), h('dd', { text: money(rows[0].payment) }),
+        h('dt', { text: 'Última parcela' }), h('dd', { text: money(rows[rows.length - 1].payment) }),
+        h('dt', { text: 'Juros totais' }), h('dd', { text: money(sim2.totalInterest) }),
+        h('dt', { text: 'Total pago' }), h('dd', { text: money(sim2.totalPaid) })),
+      bar,
+      h('button', { class: 'btn small', type: 'button', text: 'Usar ' + label,
+        disabled: state.simInput.system === label,
+        onclick: () => { state.simInput.system = label; simulate(); } }));
+  };
+  return h('section', { class: 'card col-7' }, head,
+    h('div', { class: 'cmpgrid' }, col(price, 'PRICE'), col(sac, 'SAC')),
+    h('p', { class: 'note', text: saving > 0
+      ? 'O SAC paga ' + money(saving) + ' a menos em juros, com parcelas iniciais maiores.'
+      : saving < 0 ? 'O Price paga ' + money(-saving) + ' a menos em juros.' : 'Os dois sistemas têm o mesmo custo total.' }));
+}
+
+function dueDate(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toLocaleDateString('pt-BR');
+}
+
+function summaryText(sim) {
+  const rows = sim.installments;
+  return ['CreditFlow · simulação ' + sim.system,
+    'Valor: ' + money(sim.amount) + ' em ' + sim.term + 'x a ' + pct(sim.monthlyRate) + ' a.m.',
+    'Primeira parcela: ' + money(rows[0].payment) + ' · última: ' + money(rows[rows.length - 1].payment),
+    'Juros totais: ' + money(sim.totalInterest) + ' · total pago: ' + money(sim.totalPaid),
+    'CET aprox.: ' + pct(sim.cetAnnual) + ' a.a.'].join('\n');
+}
+
+function exportCsv(sim) {
+  const lines = ['parcela;valor_parcela;amortizacao;juros;saldo'].concat(sim.installments.map(l =>
+    [l.number, l.payment, l.principal, l.interest, l.balance].map(v => String(v).replace('.', ',')).join(';')));
+  const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cronograma-' + sim.system.toLowerCase() + '.csv';
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Cronograma exportado em CSV.');
+}
+
+async function copySummary(sim) {
+  try {
+    await navigator.clipboard.writeText(summaryText(sim));
+    toast('Resumo copiado.');
+  } catch (e) { toast('Não foi possível copiar neste navegador.', true); }
+}
+
+function summaryCard(sim) {
+  const rows = sim.installments, n = rows.length;
+  const avg = rows.reduce((a, l) => a + Number(l.payment), 0) / n;
+  const line = (k, v) => h('div', { class: 'sumrow' }, h('span', { text: k }), h('b', { text: v }));
+  return h('section', { class: 'card col-5' },
+    h('div', { class: 'cardhead' }, h('h2', { text: 'Resumo' })),
+    line('Valor liberado', money(sim.amount)),
+    line('Parcela média', money(avg)),
+    line('Juros médios por mês', money(Number(sim.totalInterest) / n)),
+    line('Juros sobre o valor', pct(Number(sim.totalInterest) / Number(sim.amount), 1)),
+    line('CET mensal', pct(sim.cetMonthly)),
+    line('Última parcela em', dueDate(n)),
+    h('div', { class: 'actions sumact' },
+      h('button', { class: 'btn small', type: 'button', onclick: () => exportCsv(sim) }, icon('download'), ' Exportar CSV'),
+      h('button', { class: 'btn small', type: 'button', onclick: () => copySummary(sim) }, icon('copy'), ' Copiar resumo')));
+}
+
 function paramsDialog() {
   const i = state.simInput;
   const draft = { ...i };
@@ -305,7 +450,11 @@ function simView() {
     amountEl(sim ? first.payment : 0),
     h('div', { class: 'chips' },
       h('span', { class: 'glass soft' }, icon('up'), sim ? ' CET ' + pct(sim.cetAnnual) + ' a.a.' : ' CET —'),
-      h('span', { class: 'glass soft', text: sim ? 'primeira parcela · ' + sim.term + ' meses' : 'primeira parcela' })),
+      h('span', { class: 'glass soft', text: sim ? 'primeira parcela · ' + sim.term + ' meses' : 'primeira parcela' }),
+      h('span', { class: 'presets', role: 'group', 'aria-label': 'Prazo' }, [12, 24, 36, 48].map(t => h('button', {
+        class: 'glass' + (String(i.term) === String(t) ? ' on' : ''), type: 'button', text: t + 'x',
+        onclick: () => { if (String(i.term) !== String(t)) { i.term = String(t); simulate(); } }
+      })))),
     sim ? barChart(sim) : h('div', { class: 'empty', text: 'Preencha os dados e simule para ver o saldo devedor.' }));
 
   const hero2 = h('section', { class: 'hero' },
@@ -331,8 +480,10 @@ function simView() {
     const shown = state.showAll ? rows : rows.slice(0, 8);
     const tx = h('section', { class: 'card soft col-7' },
       h('div', { class: 'cardhead' }, h('h2', { text: 'Cronograma' }),
-        rows.length > 8 && h('button', { class: 'link', type: 'button', text: state.showAll ? 'Ver menos' : 'Ver todas',
-          onclick: () => { state.showAll = !state.showAll; render(); } })),
+        h('div', { class: 'linkrow' },
+          h('button', { class: 'link', type: 'button', text: 'Exportar CSV', onclick: () => exportCsv(sim) }),
+          rows.length > 8 && h('button', { class: 'link', type: 'button', text: state.showAll ? 'Ver menos' : 'Ver todas',
+            onclick: () => { state.showAll = !state.showAll; render(); } }))),
       h('div', { class: 'txlist' }, shown.map(l => h('div', { class: 'tx' },
         h('span', { class: 'badge', text: l.number }),
         h('div', { class: 'name' }, h('b', { text: 'Parcela ' + l.number }), h('small', { text: 'saldo restante ' + money(l.balance) })),
@@ -349,7 +500,9 @@ function simView() {
       tile('Prazo', 'clock', { text: sim.term + ' meses' }, sim.system === 'PRICE' ? 'parcelas fixas' : 'parcelas decrescentes', true),
       tile('Taxa mensal', 'percent', { text: pct(sim.monthlyRate) + ' a.m.' }, 'CET ' + pct(sim.cetAnnual) + ' a.a.', false)),
     h('p', { class: 'note', text: 'CET aproximado: TIR do fluxo, sem tarifas nem IOF.' }));
+    ensureCompare(sim);
     parts.push(h('div', { class: 'grid' }, tx, side));
+    parts.push(h('div', { class: 'grid sec' }, compareCard(sim), summaryCard(sim)));
   }
   return h('div', null, ...parts);
 }
@@ -567,5 +720,12 @@ async function render() {
     app.replaceChildren(shell(propView()));
   }
 }
+
+document.addEventListener('click', ev => {
+  if (state.pop && !ev.target.closest('.popwrap')) { state.pop = null; render(); }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && state.pop) { state.pop = null; render(); }
+});
 
 render();
