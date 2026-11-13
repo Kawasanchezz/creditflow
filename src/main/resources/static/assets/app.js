@@ -175,6 +175,14 @@ function togglePop(name) {
   render();
 }
 
+function newSimulation() {
+  state.pop = null; state.tab = 'sim';
+  state.simInput = { system: 'PRICE', amount: '10000', rate: '1.99', term: '12' };
+  state.sim = null; state.cmp = null; state.showAll = false;
+  render();
+  paramsDialog();
+}
+
 function goTo(tab, id) {
   state.pop = null; state.tab = tab;
   if (id !== undefined) state.selectedId = id;
@@ -196,7 +204,7 @@ function notifPanel() {
 function userPanel() {
   return h('div', { class: 'pop narrow', role: 'menu', 'aria-label': 'Conta' },
     h('div', { class: 'pophead' }, h('b', { text: state.me.username }), h('small', { text: displayName() })),
-    h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('sim') }, icon('sliders'), h('span', { class: 'grow', text: 'Nova simulação' })),
+    h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => { state.pop = null; newSimulation(); } }, icon('sliders'), h('span', { class: 'grow', text: 'Nova simulação' })),
     h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('prop') }, icon('list'), h('span', { class: 'grow', text: 'Minhas propostas' })),
     state.me.role === 'ANALYST' && h('button', { class: 'popitem', type: 'button', role: 'menuitem', onclick: () => goTo('quality') }, icon('doc'), h('span', { class: 'grow', text: 'Qualidade da política' })),
     h('button', { class: 'popfoot danger', type: 'button', role: 'menuitem', text: 'Sair', onclick: logout }));
@@ -229,7 +237,7 @@ function shell(content) {
     quality: 'Veja como a política de crédito se comporta nos desfechos' }[state.tab];
   const cta = state.tab === 'sim'
     ? h('button', { class: 'btn primary cta', type: 'button', onclick: paramsDialog }, icon('sliders'), ' Editar simulação')
-    : h('button', { class: 'btn primary cta', type: 'button', onclick: () => { state.tab = 'sim'; render(); } }, icon('doc'), ' Nova simulação');
+    : h('button', { class: 'btn primary cta', type: 'button', onclick: newSimulation }, icon('sliders'), ' Nova simulação');
   return h('div', { class: 'shell' },
     h('header', { class: 'top' },
       h('div', { class: 'brand' }, logoSvg(), h('span', { text: 'CreditFlow' })),
@@ -658,7 +666,7 @@ function propView() {
     }, h('span', { class: 'icon', text: '#' + p.id }),
     h('span', { class: 'grow' }, h('b', { text: money(p.amount) }), h('small', { text: p.system + ' · ' + p.term + 'x' })),
     badge(p.status))) : h('div', { class: 'empty', text: 'Nenhuma proposta ainda. Faça uma simulação e crie a primeira.' })),
-    h('div', { class: 'actions' }, h('button', { class: 'btn small', text: 'Nova simulação', onclick: () => { state.tab = 'sim'; render(); } })));
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary block', type: 'button', onclick: newSimulation }, icon('sliders'), ' Nova simulação')));
   return h('div', { class: 'grid' }, list, detailView());
 }
 
