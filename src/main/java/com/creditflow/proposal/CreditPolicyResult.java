@@ -22,14 +22,18 @@ public class CreditPolicyResult {
 
     private String detail;
 
+    @Column(name = "policy_version", nullable = false)
+    private String policyVersion;
+
     protected CreditPolicyResult() {
     }
 
-    public CreditPolicyResult(Long proposalId, String ruleCode, Outcome outcome, String detail) {
+    public CreditPolicyResult(Long proposalId, String ruleCode, Outcome outcome, String detail, String policyVersion) {
         this.proposalId = proposalId;
         this.ruleCode = ruleCode;
         this.outcome = outcome;
         this.detail = detail;
+        this.policyVersion = policyVersion;
     }
 
     public Long getId() { return id; }
@@ -37,4 +41,5 @@ public class CreditPolicyResult {
     public String getRuleCode() { return ruleCode; }
     public Outcome getOutcome() { return outcome; }
     public String getDetail() { return detail; }
+    public String getPolicyVersion() { return policyVersion; }
 }

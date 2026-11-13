@@ -53,7 +53,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**", "/error", "/api/demo").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/proposals/*/manual-decision").hasRole("ANALYST")
+                        .requestMatchers(HttpMethod.POST, "/api/proposals/*/manual-decision", "/api/proposals/*/outcomes").hasRole("ANALYST")
+                        .requestMatchers("/api/outcomes/**").hasRole("ANALYST")
                         .requestMatchers("/api/**").hasAnyRole("ANALYST", "CUSTOMER")
                         .anyRequest().denyAll());
         return http.build();

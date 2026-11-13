@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -98,8 +99,9 @@ public class ProposalService {
 
         return tx.execute(status -> {
             Proposal p = get(id);
+            String version = Objects.requireNonNullElse(policy.version(), "unknown");
             decision.trail().forEach(e -> policyResults.save(
-                    new CreditPolicyResult(id, e.ruleCode(), e.outcome(), e.detail())));
+                    new CreditPolicyResult(id, e.ruleCode(), e.outcome(), e.detail(), version)));
             switch (decision.verdict()) {
                 case APPROVED -> approve(p, decision.reason());
                 case REJECTED -> move(p, ProposalStatus.RECUSADA, decision.reason());
