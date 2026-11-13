@@ -3,7 +3,7 @@
 const state = {
   auth: null, me: null, tab: 'sim',
   simInput: { system: 'PRICE', amount: '10000', rate: '1.99', term: '12' },
-  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false, session: 0
+  sim: null, proposals: [], selectedId: null, detail: null, keys: {}, demo: false, session: 0, showAll: false
 };
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -138,46 +138,61 @@ function loginView() {
 
 function logoSvg() {
   return s('svg', { class: 'logo', viewBox: '0 0 64 64', 'aria-hidden': 'true' },
-    s('circle', { cx: 32, cy: 32, r: 30, fill: '#2f5d46' }),
-    s('rect', { x: 16, y: 16, width: 10, height: 30, rx: 2, fill: '#cfe3d6' }),
-    s('rect', { x: 29, y: 25, width: 10, height: 21, rx: 2, fill: '#cfe3d6' }),
-    s('rect', { x: 42, y: 34, width: 10, height: 12, rx: 2, fill: '#cfe3d6' }));
+    s('path', { d: 'M32 6L60 56H44L32 33 20 56H4z', fill: '#111111' }),
+    s('path', { d: 'M32 33l9 17H23z', fill: '#ff7a3d' }));
 }
 
 /* ---------- casca ---------- */
 const ICONS = {
-  sim: ['M4 4h7v7H4z', 'M13 4h7v7h-7z', 'M4 13h7v7H4z', 'M13 13h7v7h-7z'],
-  prop: ['M6 3h9l4 4v14H6z', 'M14 3v5h5', 'M9 13h7', 'M9 17h7'],
-  quality: ['M5 20V10', 'M12 20V4', 'M19 20v-7'],
-  out: ['M9 4H5v16h4', 'M16 8l4 4-4 4', 'M20 12H9']
+  up: ['M7 17L17 7', 'M8 7h9v9'],
+  down: ['M7 7l10 10', 'M17 8v9H8'],
+  swap: ['M7 4v16', 'M4 7l3-3 3 3', 'M17 20V4', 'M14 17l3 3 3-3'],
+  bell: ['M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7', 'M10 20a2 2 0 0 0 4 0'],
+  out: ['M9 4H5v16h4', 'M16 8l4 4-4 4', 'M20 12H9'],
+  doc: ['M6 3h9l4 4v14H6z', 'M14 3v5h5'],
+  sliders: ['M4 7h9', 'M17 7h3', 'M4 17h3', 'M11 17h9', 'M13 5v4', 'M7 15v4'],
+  clock: ['M12 7v5l3 2', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
+  percent: ['M19 5L5 19', 'M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  wallet: ['M4 7h15a1 1 0 0 1 1 1v11H5a1 1 0 0 1-1-1z', 'M4 7l12-3v3', 'M16 13h4']
 };
 function icon(name) {
-  return s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8,
+  return s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
   ...ICONS[name].map(d => s('path', { d })));
+}
+
+function displayName() {
+  const u = state.me.username;
+  return state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + (state.me.customerId || u);
 }
 
 function shell(content) {
   const tabs = [['sim', 'Simulador'], ['prop', 'Propostas']];
   if (state.me.role === 'ANALYST') tabs.push(['quality', 'Qualidade']);
-  const subtitle = { sim: 'Simule um financiamento e compare Price e SAC.', prop: 'Acompanhe propostas, contratos e parcelas.',
-    quality: 'Veja como a política de crédito se comporta nos desfechos.' }[state.tab];
+  const subtitle = { sim: 'Simule financiamentos e compare Price e SAC em tempo real',
+    prop: 'Acompanhe propostas, contratos e parcelas em um só lugar',
+    quality: 'Veja como a política de crédito se comporta nos desfechos' }[state.tab];
+  const cta = state.tab === 'sim'
+    ? h('button', { class: 'btn primary cta', type: 'button', onclick: paramsDialog }, icon('sliders'), ' Editar simulação')
+    : h('button', { class: 'btn primary cta', type: 'button', onclick: () => { state.tab = 'sim'; render(); } }, icon('doc'), ' Nova simulação');
   return h('div', { class: 'shell' },
-    h('nav', { class: 'side', 'aria-label': 'Navegação' },
-      tabs.map(([id, label]) => h('button', {
-        class: 'nav-btn' + (state.tab === id ? ' active' : ''), type: 'button', title: label, 'aria-label': label,
+    h('header', { class: 'top' },
+      h('div', { class: 'brand' }, logoSvg(), h('span', { text: 'CreditFlow' })),
+      h('nav', { class: 'navpill', 'aria-label': 'Navegação' }, tabs.map(([id, label]) => h('button', {
+        class: state.tab === id ? 'active' : '', type: 'button', text: label,
         'aria-current': state.tab === id ? 'page' : false,
         onclick: () => { state.tab = id; render(); }
-      }, icon(id))),
-      h('span', { class: 'spacer' }),
-      h('button', { class: 'nav-btn', type: 'button', title: 'Sair', 'aria-label': 'Sair', onclick: logout }, icon('out')),
-      h('span', { class: 'avatar', 'aria-hidden': 'true', text: state.me.username[0] })),
-    h('div', { class: 'main' },
+      }))),
+      h('div', { class: 'who' },
+        h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }),
+        h('button', { class: 'round', type: 'button', title: 'Notificações', 'aria-label': 'Notificações' }, icon('bell'), h('i', { class: 'ping' })),
+        h('button', { class: 'round', type: 'button', title: 'Sair', 'aria-label': 'Sair', onclick: logout }, icon('out')),
+        h('span', { class: 'avatar', 'aria-hidden': 'true', text: state.me.username[0] }))),
+    h('main', { class: 'main' },
       state.demo && h('div', { class: 'demo-banner', text: 'Modo demonstração · dados fictícios' }),
-      h('header', { class: 'top' },
-        h('div', null, h('h1', { class: 'hello-title', text: 'Olá, ' + state.me.username + '!' }), h('p', { class: 'hello-sub', text: subtitle })),
-        h('div', { class: 'who' },
-          h('span', { class: 'pill dark', text: state.me.role === 'ANALYST' ? 'Analista' : 'Cliente ' + state.me.customerId }))),
+      h('div', { class: 'welcome' },
+        h('div', null, h('p', { class: 'hello-sub', text: subtitle }), h('h1', { class: 'hello-title', text: 'Bem-vindo de volta, ' + displayName() + '!' })),
+        cta),
       content));
 }
 
@@ -193,105 +208,150 @@ async function simulate() {
   } catch (e) { toast(e.message, true); }
 }
 
-function gauge(sim) {
-  const share = Math.min(1, Number(sim.amount) / Number(sim.totalPaid)), L = Math.PI * 90;
-  const arc = 'M 25 115 A 90 90 0 0 1 205 115';
-  return h('div', { class: 'gauge-wrap' },
-    s('svg', { width: 230, height: 130, viewBox: '0 0 230 130', role: 'img', 'aria-label': 'Composição do total pago' },
-      s('path', { d: arc, fill: 'none', stroke: '#e4ece7', 'stroke-width': 24, 'stroke-linecap': 'round' }),
-      s('path', { d: arc, fill: 'none', stroke: '#5f8a70', 'stroke-width': 24, 'stroke-linecap': 'round',
-        'stroke-dasharray': (share * L) + ' ' + L })),
-    h('div', { class: 'gauge-center' }, h('b', { text: Math.round(share * 100) + '%' }), h('span', { class: 'label', text: 'é principal' })));
+function splitMoney(v) {
+  const t = money(v), i = t.lastIndexOf(',');
+  return [t.slice(0, i), t.slice(i)];
 }
-
-function spark(values, bars) {
-  const w = 84, hgt = 44, max = Math.max(...values, 1);
-  if (bars) {
-    return s('svg', { viewBox: '0 0 ' + w + ' ' + hgt, 'aria-hidden': 'true' },
-      ...values.map((v, i) => {
-        const bh = Math.max(4, (v / max) * hgt);
-        return s('rect', { x: i * 14 + 2, y: hgt - bh, width: 8, height: bh, rx: 4, fill: '#4f7a62' });
-      }));
-  }
-  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, hgt - 4 - (v / max) * (hgt - 8)]);
-  return s('svg', { viewBox: '0 0 ' + w + ' ' + hgt, 'aria-hidden': 'true' },
-    s('path', { d: 'M' + pts.map(p => p.map(n => n.toFixed(1)).join(' ')).join(' L'), fill: 'none', stroke: 'currentColor',
-      'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+function amountEl(v, cls) {
+  if (v && v.text !== undefined) return h('div', { class: cls || 'amount', text: v.text });
+  const [a, b] = splitMoney(v);
+  return h('div', { class: cls || 'amount' }, a, h('span', { class: 'cents', text: b }));
 }
+const compact = v => (v >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k' : String(Math.round(v)));
 
-function kpis(sim) {
-  const rows = sim ? sim.installments : [];
-  const every = Math.max(1, Math.ceil(rows.length / 6));
-  const sample = key => {
-    const v = rows.filter((_, i) => i % every === 0).slice(0, 6).map(l => Number(l[key]) || 0);
-    return v.length > 1 ? v : [1, 1, 1, 1];
+function barChart(sim) {
+  const W = 600, H = 220, L = 36, B = 24, T = 10;
+  const rows = sim.installments, step = Math.max(1, Math.ceil(rows.length / 96));
+  const pick = rows.filter((l, i) => i % step === 0 || i === rows.length - 1);
+  const max = Number(sim.amount), slot = (W - L) / pick.length, bw = Math.max(1.6, slot * 0.42);
+  const yOf = v => T + (H - T - B) * (1 - Number(v) / max);
+  const box = h('div', { class: 'chartbox' });
+  const tip = h('div', { class: 'tip' });
+  const bars = [];
+  const dot = s('circle', { class: 'dot', r: 5 });
+  const show = idx => {
+    const l = pick[idx], prev = idx === 0 ? max : Number(pick[idx - 1].balance);
+    bars.forEach((r, k) => r.setAttribute('class', 'bar' + (k === idx ? ' sel' : '')));
+    const drop = prev > 0 ? (prev - Number(l.balance)) / prev : 0;
+    tip.replaceChildren(
+      h('div', { class: 'tiprow' }, h('b', { text: money(l.balance) }), h('span', { class: 'chipk' }, icon('down'), ' ' + pct(drop, 1))),
+      h('small', { text: 'saldo após a parcela ' + l.number }));
+    const cx = L + slot * idx + slot / 2, cy = yOf(l.balance);
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
+    tip.style.left = Math.min(88, Math.max(12, cx / W * 100)) + '%';
+    tip.style.top = (Math.max(cy - 14, 70) / H * 100) + '%';
   };
-  const tile = (label, value, chart, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') },
-    h('div', null, h('span', { class: 'label', text: label }), h('b', { text: value })), chart);
-  return h('div', { class: 'kpis' },
-    tile('Primeira parcela', sim ? money(rows[0].payment) : '—', spark(sample('payment'), true)),
-    tile('Total pago', sim ? money(sim.totalPaid) : '—', spark(sample('balance'), false)),
-    tile('Juros totais', sim ? money(sim.totalInterest) : '—', spark(sample('interest'), true)),
-    tile('CET anual', sim ? pct(sim.cetAnnual) : '—', spark(sample('principal'), false), 'grad'));
+  const ticks = [0.25, 0.5, 0.75, 1].map(p => {
+    const t = s('text', { class: 'axis', x: 0, y: yOf(max * p) + 3 });
+    t.textContent = compact(max * p); return t;
+  });
+  const labelEvery = Math.ceil(pick.length / 12);
+  const xl = pick.map((l, idx) => idx % labelEvery === 0 ? l : null).filter(Boolean).map(l => {
+    const idx = pick.indexOf(l), t = s('text', { class: 'axis', x: L + slot * idx + slot / 2, y: H - 6, 'text-anchor': 'middle' });
+    t.textContent = l.number; return t;
+  });
+  const svg = s('svg', { class: 'bars', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Saldo devedor ao longo das parcelas' }, ...ticks, ...xl);
+  pick.forEach((l, idx) => {
+    const x = L + slot * idx + (slot - bw) / 2, y = yOf(l.balance);
+    const r = s('rect', { class: 'bar', x, y, width: bw, height: Math.max(2, H - B - y), rx: Math.min(bw / 2, 2) });
+    bars.push(r);
+    const hit = s('rect', { class: 'hit', x: L + slot * idx, y: 0, width: slot, height: H - B });
+    hit.addEventListener('mouseenter', () => show(idx));
+    hit.addEventListener('click', () => show(idx));
+    svg.append(r, hit);
+  });
+  svg.append(dot);
+  box.append(svg, tip);
+  show(Math.floor(pick.length * 0.55));
+  return box;
 }
 
-function balanceChart(sim) {
-  const rows = sim.installments, W = 560, H = 150, max = Number(sim.amount);
-  const y = v => H - (Number(v) / max) * (H - 20) - 10;
-  const pts = [[0, y(sim.amount)], ...rows.map((l, i) => [((i + 1) / rows.length) * W, y(l.balance)])];
-  const line = pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
-  return s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', role: 'img', 'aria-label': 'Evolução do saldo devedor' },
-    s('defs', null, s('linearGradient', { id: 'bal-fill', x1: 0, y1: 0, x2: 0, y2: 1 },
-      s('stop', { offset: '0%', 'stop-color': '#5f8a70', 'stop-opacity': 0.28 }),
-      s('stop', { offset: '100%', 'stop-color': '#5f8a70', 'stop-opacity': 0 }))),
-    s('path', { d: 'M' + line + ' L' + W + ' ' + H + ' L0 ' + H + ' Z', fill: 'url(#bal-fill)' }),
-    s('path', { d: 'M' + line, fill: 'none', stroke: '#4f7a62', 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke', 'stroke-linejoin': 'round' }));
+function paramsDialog() {
+  const i = state.simInput;
+  const draft = { ...i };
+  const f = (label, key) => h('div', { class: 'field' }, h('label', { text: label }),
+    h('input', { value: draft[key], inputmode: 'decimal', oninput: e => { draft[key] = e.target.value; } }));
+  const segBtns = ['PRICE', 'SAC'].map(sys => h('button', {
+    type: 'button', class: draft.system === sys ? 'active' : '', text: sys,
+    onclick: () => { draft.system = sys; segBtns.forEach(b => b.classList.toggle('active', b.textContent === sys)); }
+  }));
+  const dlg = h('dialog', null,
+    h('h2', { text: 'Editar simulação' }),
+    h('p', { class: 'label', text: 'Escolha o sistema, o valor, a taxa mensal e o prazo.' }),
+    h('div', { class: 'seg', role: 'group', 'aria-label': 'Sistema de amortização' }, segBtns),
+    h('div', { class: 'form' }, f('Valor financiado (R$)', 'amount'), f('Taxa mensal (%)', 'rate'), f('Prazo (meses)', 'term')),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn', type: 'button', text: 'Cancelar', onclick: () => { dlg.close(); dlg.remove(); } }),
+      h('button', { class: 'btn primary', type: 'button', text: 'Simular', onclick: () => {
+        Object.assign(state.simInput, draft); dlg.close(); dlg.remove(); simulate();
+      } })));
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 function simView() {
   const i = state.simInput, sim = state.sim;
-  const field = (label, key, attrs) => h('div', { class: 'field' }, h('label', { text: label }),
-    h('input', { value: i[key], inputmode: 'decimal', ...attrs, oninput: e => { i[key] = e.target.value; } }));
-  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Sistema de amortização' }, ['PRICE', 'SAC'].map(sys =>
-    h('button', { type: 'button', class: i.system === sys ? 'active' : '', text: sys, onclick: () => { i.system = sys; render(); } })));
-  const form = h('div', null,
-    seg,
-    h('div', { class: 'form' },
-      field('Valor financiado (R$)', 'amount'), field('Taxa mensal (%)', 'rate'), field('Prazo (meses)', 'term')),
-    h('div', { class: 'actions' },
-      h('button', { class: 'btn primary', text: 'Simular', onclick: simulate }),
-      h('button', { class: 'btn', text: 'Criar proposta', disabled: !sim, onclick: proposalDialog })));
-  const first = sim && sim.installments[0];
-  const left = h('section', { class: 'card col-5' },
-    h('h2', { text: 'Simulação' }),
-    h('span', { class: 'label', text: sim ? 'Primeira parcela (' + sim.system + ')' : 'Preencha os dados e simule' }),
-    h('div', { class: 'big', text: sim ? money(first.payment) : 'R$ 0,00' }),
-    form);
-  const right = h('section', { class: 'card lime col-7' },
-    s('svg', { class: 'sparkle', viewBox: '0 0 100 100', 'aria-hidden': 'true' },
-      s('path', { d: 'M50 0C55 35 65 45 100 50C65 55 55 65 50 100C45 65 35 55 0 50C35 45 45 35 50 0Z', fill: '#fff' })),
-    h('h2', { text: 'Juros totais' }),
-    h('div', { class: 'big', text: sim ? money(sim.totalInterest) : 'R$ 0,00' }),
-    sim && h('span', { class: 'chip', text: 'CET aprox. ' + pct(sim.cetAnnual) + ' a.a.' }),
-    h('div', { class: 'row' },
-      h('div', { class: 'box' }, h('span', { class: 'label', text: 'Valor liberado' }), h('b', { text: sim ? money(sim.amount) : '—' })),
-      h('div', { class: 'box' }, h('span', { class: 'label', text: 'Última parcela' }), h('b', { text: sim ? money(sim.installments[sim.installments.length - 1].payment) : '—' }))),
-    h('p', { class: 'note', text: 'CET aproximado: TIR do fluxo, sem tarifas nem IOF.' }));
-  const parts = [left, right];
+  const rows = sim ? sim.installments : [];
+  const first = rows[0];
+  const setSystem = sys => { if (i.system !== sys) { i.system = sys; simulate(); } };
+  const sysPills = ['PRICE', 'SAC'].map(sys => h('button', {
+    class: 'glass' + (i.system === sys ? ' on' : ''), type: 'button', text: sys, onclick: () => setSystem(sys)
+  }));
+
+  const hero1 = h('section', { class: 'hero' },
+    h('div', { class: 'hero-head' }, h('h2', { text: 'Simulação' }),
+      h('div', { class: 'pillrow' }, ...sysPills,
+        h('button', { class: 'round-glass', type: 'button', title: 'Editar parâmetros', 'aria-label': 'Editar parâmetros', onclick: paramsDialog }, icon('sliders')))),
+    amountEl(sim ? first.payment : 0),
+    h('div', { class: 'chips' },
+      h('span', { class: 'glass soft' }, icon('up'), sim ? ' CET ' + pct(sim.cetAnnual) + ' a.a.' : ' CET —'),
+      h('span', { class: 'glass soft', text: sim ? 'primeira parcela · ' + sim.term + ' meses' : 'primeira parcela' })),
+    sim ? barChart(sim) : h('div', { class: 'empty', text: 'Preencha os dados e simule para ver o saldo devedor.' }));
+
+  const hero2 = h('section', { class: 'hero' },
+    h('div', { class: 'hero-head' }, h('h2', { text: 'Juros totais' }),
+      h('span', { class: 'glass', text: sim ? sim.term + ' meses' : '—' })),
+    amountEl(sim ? sim.totalInterest : 0),
+    h('div', { class: 'chips split' },
+      h('span', { class: 'glass soft' }, icon('up'), sim ? ' ' + pct(Number(sim.totalInterest) / Number(sim.amount), 1) + ' do valor' : ' do valor'),
+      h('span', { class: 'glass soft' }, icon('wallet'), sim ? ' Total pago: ' + money(sim.totalPaid) : ' Total pago: —')),
+    h('div', { class: 'hero-actions' },
+      h('button', { class: 'white-btn', type: 'button', disabled: !sim, onclick: () => sim && proposalDialog() }, icon('up'), 'Criar proposta'),
+      h('button', { class: 'round-white', type: 'button', title: 'Alternar Price/SAC', 'aria-label': 'Alternar Price/SAC', onclick: () => setSystem(i.system === 'PRICE' ? 'SAC' : 'PRICE') }, icon('swap')),
+      h('button', { class: 'white-btn', type: 'button', onclick: simulate }, icon('down'), 'Recalcular')),
+    h('div', { class: 'stack', 'aria-hidden': 'true' },
+      h('div', { class: 'layer l1' }), h('div', { class: 'layer l2' }),
+      h('div', { class: 'layer face' },
+        h('span', { text: '•••• ' + (sim ? String(sim.term).padStart(2, '0') : '--') + '   ' + (sim ? sim.system : i.system) }),
+        h('b', { text: 'CREDITFLOW' }))));
+
+  const parts = [h('div', { class: 'herorow' }, hero1, hero2)];
   if (sim) {
-    parts.push(h('section', { class: 'card col-4' }, h('h2', { text: 'Composição' }), gauge(sim),
-      h('div', { class: 'legend' },
-        h('span', null, h('i', { class: 'dot principal' }), 'Principal'),
-        h('span', null, h('i', { class: 'dot juros' }), 'Juros'))));
-    parts.push(h('section', { class: 'card col-8' }, h('h2', { text: 'Saldo devedor' }), balanceChart(sim)));
-    parts.push(h('section', { class: 'card col-12' }, h('h2', { text: 'Cronograma' }),
-      h('div', { class: 'table-wrap' }, h('table', null,
-        h('thead', null, h('tr', null, ['#', 'Parcela', 'Amortização', 'Juros', 'Saldo'].map(t => h('th', { text: t })))),
-        h('tbody', null, sim.installments.map(l => h('tr', null,
-          h('td', { text: l.number }), h('td', { text: money(l.payment) }), h('td', { text: money(l.principal) }),
-          h('td', { text: money(l.interest) }), h('td', { text: money(l.balance) }))))))));
+    const share = Number(sim.amount) / Number(sim.totalPaid);
+    const shown = state.showAll ? rows : rows.slice(0, 8);
+    const tx = h('section', { class: 'card soft col-7' },
+      h('div', { class: 'cardhead' }, h('h2', { text: 'Cronograma' }),
+        rows.length > 8 && h('button', { class: 'link', type: 'button', text: state.showAll ? 'Ver menos' : 'Ver todas',
+          onclick: () => { state.showAll = !state.showAll; render(); } })),
+      h('div', { class: 'txlist' }, shown.map(l => h('div', { class: 'tx' },
+        h('span', { class: 'badge', text: l.number }),
+        h('div', { class: 'name' }, h('b', { text: 'Parcela ' + l.number }), h('small', { text: 'saldo restante ' + money(l.balance) })),
+        h('div', { class: 'pillx' }, h('span', { text: 'Juros ' + money(l.interest) })),
+        h('div', { class: 'dots', text: 'amort. ' + money(l.principal) }),
+        h('div', { class: 'val', text: money(l.payment) })))));
+    const tile = (label, ic, value, delta, good) => h('div', { class: 'tile' },
+      h('div', { class: 'tilehead' }, h('span', { class: 'label', text: label }), icon(ic)),
+      amountEl(value, 'tilevalue'),
+      h('span', { class: 'delta' }, h('i', { class: good ? 'good' : '', text: good ? '↗ ' : '↘ ' }), delta));
+    const side = h('div', { class: 'col-5' }, h('div', { class: 'tiles' },
+      tile('Principal', 'wallet', sim.amount, Math.round(share * 100) + '% do total pago', true),
+      tile('Juros', 'up', sim.totalInterest, Math.round((1 - share) * 100) + '% do total pago', false),
+      tile('Prazo', 'clock', { text: sim.term + ' meses' }, sim.system === 'PRICE' ? 'parcelas fixas' : 'parcelas decrescentes', true),
+      tile('Taxa mensal', 'percent', { text: pct(sim.monthlyRate) + ' a.m.' }, 'CET ' + pct(sim.cetAnnual) + ' a.a.', false)),
+    h('p', { class: 'note', text: 'CET aproximado: TIR do fluxo, sem tarifas nem IOF.' }));
+    parts.push(h('div', { class: 'grid' }, tx, side));
   }
-  return h('div', null, kpis(sim), h('div', { class: 'grid' }, parts));
+  return h('div', null, ...parts);
 }
 
 function proposalDialog() {
