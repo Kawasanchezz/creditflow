@@ -59,10 +59,6 @@ Já vem com 6 propostas fictícias em estados diferentes: ativa com contrato, ap
 
 > **Aviso:** o modo demonstração publica as credenciais de exemplo em `GET /api/demo`. Ele só existe quando `CREDITFLOW_DEMO_ENABLED=true` (somente no `docker-compose.demo.yml`, ligado a `127.0.0.1`) e deve ser usado apenas localmente. O `docker-compose.yml` normal continua exigindo senha.
 
-## Demonstração online na Vercel (JavaScript estático)
-
-Importe o repositório na Vercel sem alterar o diretório raiz: o `vercel.json` aponta `outputDirectory` para `src/main/resources/static`, sem build. Sem backend Java, o `assets/demo.js` simula a API no navegador (mesmos cálculos em aritmética exata, mesma política, dados de exemplo e score instável simulado; estado em `localStorage`). Se houver backend, o demo se desliga e a interface usa a API real. É uma vitrine: não é o serviço real e as credenciais de demonstração são públicas. Testes: `node --test src/test/js/*.test.js`.
-
 ## Interface web
 
 Com a aplicação no ar, abra **http://localhost:8080** e entre com `customer-1` (senha `CUSTOMER_PASSWORD` do `.env`) ou `analyst` (`ANALYST_PASSWORD`).
