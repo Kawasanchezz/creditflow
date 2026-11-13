@@ -61,7 +61,7 @@ Já vem com 6 propostas fictícias em estados diferentes: ativa com contrato, ap
 
 ## Demonstração online na Vercel (JavaScript estático)
 
-Importe o repositório na Vercel sem alterar o diretório raiz: o `vercel.json` aponta `outputDirectory` para `src/main/resources/static`, sem build. Sem backend Java, o `assets/demo.js` simula a API no navegador (mesmos cálculos em aritmética exata, mesma política, dados de exemplo e score instável simulado; estado em `localStorage`). Se houver backend, o demo se desliga e a interface usa a API real. É uma vitrine: não é o serviço real e as credenciais de demonstração são públicas. Testes: `node --test src/test/js`.
+Importe o repositório na Vercel sem alterar o diretório raiz: o `vercel.json` aponta `outputDirectory` para `src/main/resources/static`, sem build. Sem backend Java, o `assets/demo.js` simula a API no navegador (mesmos cálculos em aritmética exata, mesma política, dados de exemplo e score instável simulado; estado em `localStorage`). Se houver backend, o demo se desliga e a interface usa a API real. É uma vitrine: não é o serviço real e as credenciais de demonstração são públicas. Testes: `node --test src/test/js/*.test.js`.
 
 ## Interface web
 
