@@ -46,7 +46,10 @@ public class AuthFailureThrottle {
             long now = System.currentTimeMillis();
             windows.entrySet().removeIf(e -> now - e.getValue().start > WINDOW_MS);
             if (windows.size() >= MAX_TRACKED) {
-                windows.clear();
+                evictOldestUnblocked();
+            }
+            if (windows.size() >= MAX_TRACKED && !windows.containsKey(origin)) {
+                return;
             }
         }
         long now = System.currentTimeMillis();
@@ -59,6 +62,17 @@ public class AuthFailureThrottle {
             }
             return w;
         });
+    }
+
+    /** Abre espaco descartando as origens mais antigas ainda nao bloqueadas; origens bloqueadas nunca sao apagadas. */
+    private void evictOldestUnblocked() {
+        windows.entrySet().stream()
+                .filter(e -> e.getValue().count < MAX_FAILURES)
+                .sorted(java.util.Comparator.comparingLong(e -> e.getValue().start))
+                .limit(MAX_TRACKED / 10)
+                .map(Map.Entry::getKey)
+                .toList()
+                .forEach(windows::remove);
     }
 
     public void reset() {
