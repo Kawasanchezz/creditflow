@@ -98,22 +98,19 @@ async function signIn(user, pass) {
   }
 }
 
-function demoCard(done) {
+function demoCard() {
   const box = h('section', { class: 'demo-card', hidden: true });
   fetch('/api/demo', { credentials: 'omit' }).then(r => (r.ok ? r.json() : null)).then(info => {
-    const on = Boolean(info && info.enabled);
-    if (on) {
-      state.demo = true;
-      box.hidden = false;
-      box.append(h('h2', { text: 'Escolha um perfil' }),
-        h('p', { class: 'label', text: 'Entre com um clique, sem senha. Os dados são fictícios.' }),
-        h('div', { class: 'demo-buttons' }, info.accounts.map(a => h('button', {
-          class: 'btn lime', type: 'button', text: a.label,
-          onclick: () => signIn(a.username, a.password)
-        }))));
-    }
-    done(on);
-  }).catch(() => done(false));
+    if (!info || !info.enabled) return;
+    state.demo = true;
+    box.hidden = false;
+    box.append(h('h2', { text: 'Modo demonstração' }),
+      h('p', { class: 'label', text: 'Entre com um clique, sem senha. Os dados são fictícios.' }),
+      h('div', { class: 'demo-buttons' }, info.accounts.map(a => h('button', {
+        class: 'btn lime', type: 'button', text: a.label,
+        onclick: () => signIn(a.username, a.password)
+      }))));
+  }).catch(() => {});
   return box;
 }
 
@@ -122,7 +119,7 @@ function loginView() {
   const user = h('input', { id: 'user', autocomplete: 'username', placeholder: 'ex: customer-1', required: true });
   const pass = h('input', { id: 'pass', type: 'password', autocomplete: 'current-password', placeholder: 'Informe a sua senha', required: true });
   const form = h('form', {
-    class: 'signform', hidden: true,
+    class: 'signform',
     onsubmit: async ev => {
       ev.preventDefault();
       err.textContent = '';
@@ -153,21 +150,12 @@ function loginView() {
     cards.forEach((el, k) => el.classList.toggle('hi', k === idx));
   }, 2600);
 
-  const title = h('h1', { text: 'Entre no CreditFlow!' });
-  const sub = h('p', { class: 'sub', text: '' });
-  const card = demoCard(demo => {
-    if (demo) {
-      title.textContent = 'Experimente o CreditFlow!';
-      sub.textContent = 'Modo demonstração: não precisa de cadastro nem de senha.';
-      cards[0].lastChild.textContent = 'Escolha um perfil de demonstração.';
-    } else {
-      sub.textContent = 'Insira seu usuário e senha para entrar.';
-      form.hidden = false;
-    }
-  });
   return h('main', { class: 'loginsplit' }, splash,
     h('section', { class: 'signin' }, h('div', { class: 'signin-box' },
-      title, sub, form, card,
+      h('h1', { text: 'Entre no CreditFlow!' }),
+      h('p', { class: 'sub', text: 'Insira seu usuário e senha para entrar.' }),
+      form,
+      demoCard(),
       h('p', { class: 'fine', text: 'Projeto acadêmico de demonstração.' }))));
 }
 
