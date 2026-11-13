@@ -30,6 +30,5 @@ public class Contract {
 
     public Long getId() { return id; }
     public Long getProposalId() { return proposalId; }
-    public String getIdempotencyKey() { return idempotencyKey; }
     public Instant getSignedAt() { return signedAt; }
 }

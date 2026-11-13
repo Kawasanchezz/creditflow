@@ -2,7 +2,7 @@
 
 Simula empréstimos (Price e SAC), analisa o risco por uma cadeia de regras, aprova ou recusa e, se aprovado, contrata de forma idempotente gerando o cronograma de parcelas.
 
-Stack: Java 21, Spring Boot 3.3, PostgreSQL + Flyway, `BigDecimal`/`MathContext`, Resilience4j, JUnit 5, WireMock, JaCoCo, Docker, GitHub Actions.
+Stack: Java 21, Spring Boot 4, PostgreSQL + Flyway, `BigDecimal`/`MathContext`, Resilience4j, JUnit, WireMock, JaCoCo, Docker, GitHub Actions.
 
 ## Demonstração
 
@@ -58,10 +58,6 @@ Já vem com 6 propostas fictícias em estados diferentes: ativa com contrato, ap
 ![Propostas de exemplo](docs/img/ui-demo-propostas.png)
 
 > **Aviso:** o modo demonstração publica as credenciais de exemplo em `GET /api/demo`. Ele só existe quando `CREDITFLOW_DEMO_ENABLED=true` (somente no `docker-compose.demo.yml`, ligado a `127.0.0.1`) e deve ser usado apenas localmente. O `docker-compose.yml` normal continua exigindo senha.
-
-## Demonstração online na Vercel (JavaScript estático)
-
-Importe o repositório na Vercel sem alterar o diretório raiz: o `vercel.json` aponta `outputDirectory` para `src/main/resources/static`, sem build. Sem backend Java, o `assets/demo.js` simula a API no navegador (mesmos cálculos em aritmética exata, mesma política, dados de exemplo e score instável simulado; estado em `localStorage`). Se houver backend, o demo se desliga e a interface usa a API real. É uma vitrine: não é o serviço real e as credenciais de demonstração são públicas. Testes: `node --test src/test/js`.
 
 ## Interface web
 

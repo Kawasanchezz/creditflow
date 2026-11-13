@@ -62,11 +62,6 @@ instance/
 *.pid
 *.sock
 
-# --- CLIs de deploy (mantido por higiene, mesmo sem deploy configurado) ---
-# .vercel/ guarda project.json com orgId/projectId; .netlify/ e equivalente.
-.vercel/
-.vercel
-.netlify/
 
 # --- caches de ferramentas ---
 .vite
